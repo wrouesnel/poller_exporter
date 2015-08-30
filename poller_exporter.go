@@ -35,31 +35,31 @@ import (
     "crypto/x509"
     
     // HTTP
-	"net/http"
-	"github.com/mxk/go-imap/imap"
+	//"net/http"
+	//"github.com/mxk/go-imap/imap"
 
 	// MYSQL
 	// Posgres
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
+	//_ "github.com/go-sql-driver/mysql"
+	//_ "github.com/lib/pq"
 
-	"database/sql"
+	//"database/sql"
 	
 	// IMAP
-	"github.com/mxk/go-imap"
-	"github.com/taknb2nch/go-pop3"
+	//"github.com/mxk/go-imap"
+	//"github.com/taknb2nch/go-pop3"
 	
 	// SMTP
-	"net/smtp"
+	//"net/smtp"
 	
 	// FTP
-	"github.com/dutchcoders/goftp"
+	//"github.com/dutchcoders/goftp"
 	
 	// SSH
-	"golang.org/x/crypto/ssh"
+	//"golang.org/x/crypto/ssh"
 	
 	// ICMP Ping
-	"golang.org/x/net/icmp"
+	//"golang.org/x/net/icmp"
 )
 
 const subsystem = "poller"
@@ -75,65 +75,7 @@ func (hosts *hostsSlice) Set(value string) error {
 	return nil
 }
 
-type HostConfigs struct {
-	Hosts []Host	// List of hosts which are to be polled
-}
 
-// Defines a host which we want to find service information about.
-// Hosts export DNS checks.
-type Host struct {
-	Hostname string		// Host or IP to contact
-
-	Resolvable *prometheus.GaugeVec	// Is the hostname resolvable (IP is always true)
-	PathReachable	*prometheus.GaugeVec	// Is the host IP routable?
-
-	Services []Service	// List of services to poll
-}
-
-// Base-type from which service definitions are inherited.
-type BaseService struct {
-	Name		string					// Name of the service
-	Protocol	string					// TCP or UDP
-	Port		uint64					// Port number of the service
-//	LastPoll	*prometheus.CounterVec	// Time this service was last polled
-
-	PortOpen	*prometheus.GaugeVec	// Is the port reachable?
-	ServiceResponsive *prometheus.GaugeVec	// Is the service responding with data?
-	
-	mtx	sync.Mutex	// Protects the metrics during collection
-}
-
-func (s *BaseService) Describe(ch chan <- *prometheus.Desc) {
-//	s.LastPoll.Describe(ch)
-	s.Port.Describe(ch)
-	s.PortOpen.Describe(ch)
-	s.ServiceResponsive.Describe(ch)
-}
-
-func (s* BaseService) Collect(ch chan <- *prometheus.Metric) {
-//	s.LastPoll.Collect(ch)
-	s.Port.Collect(ch)
-	s.PortOpen.Collect(ch)
-	s.ServiceResponsive.Collect(ch)	
-}
-
-func NewService(name string, protocol string, port uint64) {
-	return &Service{
-		Name: name,
-		Protocol : protocol,
-		Port: port,
-		PortOpen: prometheus.NewGaugeVec(
-			Namespace: subsystem,
-			Subsystem: "service",
-			Name: "port_open_boolean",
-		),
-		ServiceReponsive: prometheus.NewGaugeVec(
-			Namespace: subsystem,
-			Subsystem: "service",
-			Name: "responsive_boolean",
-		)
-	}
-}
 
 var (
 	Version = "0.0.0.dev"
