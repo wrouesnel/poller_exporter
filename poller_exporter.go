@@ -62,8 +62,6 @@ import (
 	//"golang.org/x/net/icmp"
 )
 
-const subsystem = "poller"
-
 type hostsSlice []string
 
 func (hosts *hostsSlice) String() string {
@@ -83,49 +81,8 @@ var (
 	listenAddress     = flag.String("web.listen-address", ":9551", "Address on which to expose metrics and web interface.")
 	metricsPath       = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	
-	pollTime = flag.Duration("collector.poll-time", time.Minute * 30, "How frequently to poll the SSL services")
-	connectionTimeout = flag.Duration("collector.connection-timeout", time.Second * 60, "How long to wait for connection to succeed")
-	
-	monitoredHosts hostsSlice
-	
-	lastCollection = prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "ssl_collection_lasttimestamp",
-			Help: "Timestamp of last SSL poll by the exporter",
-			})
-	
-	hostContactable = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "target_connection_reachable",
-			Help: "Target host connection can be established",
-			},
-		[]string{"instance"})
-	
-	sslNotBefore = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "ssl_validity_notbefore",
-			Help: "SSL certificate valid from",
-			},
-		[]string{"instance", "commonName"})
-	sslNotAfter = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "ssl_validity_notafter",
-			Help: "SSL certificate expiry",
-			},
-		[]string{"instance", "commonName"})
-	sslIsValid = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "ssl_validity_valid",
-			Help: "SSL certificate can be validated by the scraper process",
-			},
-		[]string{"instance", "commonName"})
+	pollTime = flag.Duration("collector.poll-frequency", time.Minute * 30, "How frequently to poll services")
 )
-
-func init() {
-	prometheus.MustRegister(hostContactable)
-	prometheus.MustRegister(sslIsValid)
-	prometheus.MustRegister(sslNotBefore)
-	prometheus.MustRegister(sslNotAfter)
-}
 
 // Poll a specific target and update it's prometheus statistics
 func poll_target(target string) {
