@@ -1,10 +1,36 @@
+// This is similar to the main Prometheus scheme, because hey, it works pretty well.
+
 package main
 import (
 	//"github.com/prometheus/client_golang/prometheus"
+	"io/ioutil"
+	"gopkg.in/yaml.v2"
 )
 
-type HostConfigs struct {
-	Hosts []Host	// List of hosts which are to be polled
+func Load(s string) (*Config, error) {
+	cfg := &Config{}
+
+	err := yaml.Unmarshal([]byte(s), cfg)
+	if err != nil {
+		return nil, err
+	}
+	cfg.original = s
+}
+
+func LoadFromFile(filename string) (*Config, error) {
+	content, err = ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return Load(string(content))
+}
+
+type Config struct {
+	Hosts []Host	`yaml:host`// List of hosts which are to be polled
+
+	XXX map[string]interface{} `yaml`
+
+	original string	// Original config file contents
 }
 
 // Defines a host which we want to find service information about.
