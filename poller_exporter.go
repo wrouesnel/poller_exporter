@@ -11,6 +11,7 @@ import (
 	log "github.com/prometheus/log"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/julienschmidt/httprouter"
 	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/eknkc/amber"
 )
@@ -23,15 +24,36 @@ var (
 	configFile		  = flag.String("collector.config", "poller_exporter.yml", "File to load poller config from")
 )
 
+var (
+	assets = &assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, Prefix: "web"}
+)
+
+// Compile amber templates out of assetfs
+func MustCompile(filename string) (*template.Template) {
+	amberTmpl, err := assets.Asset(filename)
+	if err != nil {
+		panic(err)
+	}
+	return amber.MustCompile(string(amberTmpl), amber.Options{})
+}
+
 func main() {
-	handler := prometheus.Handler()
-    http.Handle(*metricsPath, handler)
-	http.Handle("/static", &assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, Prefix: "web"})
+	router := httprouter.New()
+	router.Handler("GET", *metricsPath, prometheus.Handler())
+
+	// Static assets
+	router.GET("/static", assets)
+
+	// Templates
+	amberTmpl, err := assets.Asset("templates/index.amber")
+	tmpl := amber.MustCompile(string(amberTmpl), amber.Options{})
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		
+
+
 	})
 	
-    err := http.ListenAndServe(*listenAddress, nil)
+    err := http.ListenAndServe(*listenAddress, router)
     log.Infof("Listening on %s", *listenAddress)
 	if err != nil {
 		log.Fatal(err)
