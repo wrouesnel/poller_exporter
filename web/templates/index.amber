@@ -1,9 +1,9 @@
 h1 Remote Poller Exporter
-p This is an exporter for Prometheus which polls network services.
-p 
-    a[href="/metrics"] Metrics
+    p This is an exporter for Prometheus which polls network services.
+    p
+        a[href="/metrics"] Metrics
 
 h2 Configuration
-pre #{Configuration}
+    pre #{Configuration}
 
 

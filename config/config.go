@@ -1,6 +1,6 @@
 // This is similar to the main Prometheus scheme, because hey, it works pretty well.
 
-package main
+package config
 import (
 	//"github.com/prometheus/client_golang/prometheus"
 	"io/ioutil"
@@ -8,13 +8,14 @@ import (
 )
 
 func Load(s string) (*Config, error) {
-	cfg := &Config{}
+	cfg := new(Config{})
 
 	err := yaml.Unmarshal([]byte(s), cfg)
 	if err != nil {
 		return nil, err
 	}
-	cfg.original = s
+	cfg.OriginalConfig = s
+	return cfg, nil
 }
 
 func LoadFromFile(filename string) (*Config, error) {
@@ -26,11 +27,11 @@ func LoadFromFile(filename string) (*Config, error) {
 }
 
 type Config struct {
-	Hosts []Host	`yaml:host`// List of hosts which are to be polled
+	Hosts []HostConfig	`yaml:host`// List of hosts which are to be polled
 
 	XXX map[string]interface{} `yaml`
 
-	original string	// Original config file contents
+	OriginalConfig string	// Original config file contents
 }
 
 // Defines a host which we want to find service information about.
