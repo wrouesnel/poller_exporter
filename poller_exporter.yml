@@ -1,5 +1,11 @@
-- host:
-    hostname: php-shared-1
+hosts:
+  - hostname: php-shared-1
+    basic_checks:
+      - name: PHP52-lsapi
+        proto: tcp
+        port: 5269
+
+  - hostname: php-shared-2
     basic_checks:
       - name: PHP52-lsapi
         proto: tcp

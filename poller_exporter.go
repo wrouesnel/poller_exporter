@@ -6,7 +6,8 @@ package main
 import (
     "flag"
 	"net/http"
-	"text/template"
+	"html/template"
+	"path"
 
 	log "github.com/prometheus/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -15,12 +16,15 @@ import (
 	"github.com/eknkc/amber"
 
 	"github.com/wrouesnel/poller_exporter/config"
+	"github.com/kardianos/osext"
 )
 
 var (
 	Version = "0.0.0.dev"
-	
-	listenAddress     = flag.String("web.listen-address", ":9551", "Address on which to expose metrics and web interface.")
+
+	rootDir		  	  = ""
+
+	listenAddress     = flag.String("web.listen-address", ":9113", "Address on which to expose metrics and web interface.")
 	metricsPath       = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	configFile		  = flag.String("collector.config", "poller_exporter.yml", "File to load poller config from")
 )
@@ -35,33 +39,58 @@ func MustCompile(filename string) (*template.Template) {
 }
 
 func main() {
+	flag.Parse()
+
+	rootDir, _ = osext.ExecutableFolder()
+	rootDir = path.Join(rootDir, "web")
+
 	// Parse configuration
 	cfg, err := config.LoadFromFile(*configFile)
 	if err != nil {
 		log.Fatalln("Error loading config", err)
 	}
 
-	router := httprouter.New()
-	router.Handler("GET", *metricsPath, prometheus.Handler())
-
-	// Static assets
-	router.GET("/static", assetFS())
-
 	// Templates
 	amberTmpl, err := Asset("templates/index.amber")
+	if err != nil {
+		log.Fatalln("Could not load index template:", err)
+	}
 	tmpl := amber.MustCompile(string(amberTmpl), amber.Options{})
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		data := struct{
-			Config string
-		}{
-			Config : cfg.OriginalConfig
+	// Setup the web UI
+	router := httprouter.New()
+	router.Handler("GET", *metricsPath, prometheus.Handler())	// Prometheus
+	// Static asset handling
+	router.GET("/static/*filepath", func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		reqpath := ps.ByName("filepath")
+		realpath := path.Join("static", reqpath)
+		b, err := Asset(realpath)
+		if err != nil {
+			log.Debugln("Could not find asset: ", err)
+			return
+		} else {
+			w.Write(b)
 		}
-		tmpl.Execute(w, &data)
+
 	})
-	
+
+	router.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		data := struct{
+			Cfg *config.Config
+		}{
+			Cfg : cfg,
+		}
+		err := tmpl.Execute(w, &data)
+		if err != nil {
+			log.Errorln("Error rendering template", err)
+		}
+	})
+
+	// Initialize the host poller infrastructure.
+
+
+	log.Infof("Listening on %s", *listenAddress)
     err = http.ListenAndServe(*listenAddress, router)
-    log.Infof("Listening on %s", *listenAddress)
 	if err != nil {
 		log.Fatal(err)
 	}

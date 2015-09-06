@@ -8,9 +8,11 @@ import (
 )
 
 func Load(s string) (*Config, error) {
-	cfg := new(Config{})
+	cfg := new(Config)
 
-	err := yaml.Unmarshal([]byte(s), cfg)
+	// Important: we treat the yaml file as a big list, and unmarshal to our
+	// big list here.
+	err := yaml.Unmarshal([]byte(s), &cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -19,7 +21,7 @@ func Load(s string) (*Config, error) {
 }
 
 func LoadFromFile(filename string) (*Config, error) {
-	content, err = ioutil.ReadFile(filename)
+	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -27,9 +29,9 @@ func LoadFromFile(filename string) (*Config, error) {
 }
 
 type Config struct {
-	Hosts []HostConfig	`yaml:host`// List of hosts which are to be polled
+	Hosts []HostConfig	`yaml:hosts`// List of hosts which are to be polled
 
-	XXX map[string]interface{} `yaml`
+	XXX map[string]interface{} `yaml`	// Catch any unknown flags.
 
 	OriginalConfig string	// Original config file contents
 }
@@ -42,6 +44,8 @@ type HostConfig struct {
 	BasicChecks []*BasicServiceConfig	`yaml:"basic_checks,omitempty"`
 	ChallengeResponseChecks []*ChallengeResponseConfig	`yaml:"challenge_reponse_checks,omitempty"`
 	HTTPChecks []*HTTPServiceConfig	`yaml:"http_checks,omitempty"`
+
+	XXX map[string]interface{} `yaml`	// Catch any unknown flags.
 }
 
 // A basic network service.
@@ -51,6 +55,8 @@ type BasicServiceConfig struct {
 	Port		uint64			`yaml:"port"`		// Port number of the service
 	Timeout		uint64			`yaml:"timeout"`		// Number of seconds to wait for response
 	UseSSL		bool			`yaml:"ssl,omitempty"`		// The service uses SSL
+
+	XXX map[string]interface{} `yaml`	// Catch any unknown flags.
 }
 
 // Similar to a banner check, but first sends the specified data befoe looking
@@ -59,7 +65,6 @@ type ChallengeResponseConfig struct {
 	ChallengeLiteral string		`yaml:"challenge,omitempty"`
 	ResponseRegex	string		`yaml:"response_re,omitempty"`// Regex that must match
 	ResponseLiteral string		`yaml:"response,omitempty"`// Literal string that must match
-
 	BasicServiceConfig
 }
 
@@ -71,6 +76,5 @@ type HTTPServiceConfig struct {
 	BasicAuth bool	// Use HTTP basic auth
 	Username string	// Username for HTTP basic auth
 	Password string // Password for HTTP basic auth
-
 	BasicServiceConfig
 }
