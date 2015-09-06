@@ -17,16 +17,25 @@ import (
 
 	"github.com/wrouesnel/poller_exporter/config"
 	"github.com/kardianos/osext"
+	"github.com/wrouesnel/poller_exporter/pollers"
 )
 
 var (
 	Version = "0.0.0.dev"
 
-	rootDir		  	  = ""
-
 	listenAddress     = flag.String("web.listen-address", ":9113", "Address on which to expose metrics and web interface.")
 	metricsPath       = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	configFile		  = flag.String("collector.config", "poller_exporter.yml", "File to load poller config from")
+)
+
+// Debug-related parameters
+var (
+	 rootDir		  	  = ""	// DEVELOPMENT USE ONLY
+)
+
+// Pollers
+var (
+	MonitoredHosts []pollers.Host
 )
 
 // Compile amber templates out of assetfs
@@ -41,6 +50,7 @@ func MustCompile(filename string) (*template.Template) {
 func main() {
 	flag.Parse()
 
+	// This is only used when we're running in -dev mode with bindata
 	rootDir, _ = osext.ExecutableFolder()
 	rootDir = path.Join(rootDir, "web")
 
@@ -86,8 +96,12 @@ func main() {
 		}
 	})
 
-	// Initialize the host poller infrastructure.
-
+	// Initialize the host pollers
+	MonitoredHosts = make([]pollers.Host, len(cfg.Hosts))
+	for idx, hostCfg := range cfg.Hosts {
+		log.Debugln("Setting up poller for: ", hostCfg.Hostname)
+		MonitoredHosts[idx] = pollers.NewHost(hostCfg)
+	}
 
 	log.Infof("Listening on %s", *listenAddress)
     err = http.ListenAndServe(*listenAddress, router)

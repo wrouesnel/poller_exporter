@@ -5,6 +5,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const Namespace = "poller"
+
 // Implements the basic interface for updating pollers.
 type Poller interface {
 	Poll()	// Causes the service to update its internal state.
@@ -23,7 +25,37 @@ type Host struct {
 }
 
 func NewHost(opts config.HostConfig) *Host {
-	return &Host{
+	// Setup the host
+	newHost := Host{
+		Hostname: opts.Hostname,
+		Resolvable: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: Namespace,
+			Subsystem: "host",
+			Name: "resolvable_boolean",
+			Help: "Did the last attempt to DNS resolve this host succeed?",
+			ConstLabels: { "hostname" : opts.Hostname },
+		}),
+		PathReachable: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: Namespace,
+			Subsystem: "host",
+			Name: "routable_boolean",
+			Help: "Is the resolved IP address routable on this hosts network",
+			ConstLabels: { "hostname" : opts.Hostname },
+		}),
+	}
+
+	// Setup it's services
+	for _, basicCfg := range opts.BasicChecks {
 
 	}
+
+	for _, crCfg := range opts.ChallengeResponseChecks {
+
+	}
+
+	for _, httpCfg := range opts.HTTPChecks {
+
+	}
+
+	return &newHost
 }
