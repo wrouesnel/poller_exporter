@@ -5,6 +5,18 @@ import (
 	//"github.com/prometheus/client_golang/prometheus"
 	"io/ioutil"
 	"gopkg.in/yaml.v2"
+	"time"
+	"github.com/prometheus/prometheus/util/strutil"
+)
+
+var (
+	DefaultConfig Config = Config{
+		PollFrequency: Duration(30 * time.Second),
+	}
+
+	DefaultHostConfig HostConfig = HostConfig{
+		PollFrequency: DefaultConfig.PollFrequency,
+	}
 )
 
 func Load(s string) (*Config, error) {
@@ -29,6 +41,7 @@ func LoadFromFile(filename string) (*Config, error) {
 }
 
 type Config struct {
+	PollFrequency Duration `yaml:poll_frequency,omitempty` // Default polling frequency
 	Hosts []HostConfig	`yaml:hosts`// List of hosts which are to be polled
 
 	XXX map[string]interface{} `yaml`	// Catch any unknown flags.
@@ -36,16 +49,42 @@ type Config struct {
 	OriginalConfig string	// Original config file contents
 }
 
+func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	*c = DefaultConfig
+
+	type plain Config
+	if err := unmarshal((*plain)(c)); err != nil {
+		return err
+	}
+
+	// Propagate poll frequency
+	DefaultHostConfig.PollFrequency = c.PollFrequency
+	return nil
+}
+
 // Defines a host which we want to find service information about.
 // Hosts export DNS checks.
 type HostConfig struct {
 	Hostname string		`yaml:"hostname"`	// Host or IP to contact
+	PollFrequency Duration `yaml:"poll_frequency,omitempty"` // Frequency to poll this specific host
+	PingDisable bool `yaml:"no_ping,omitempty"`	// Disable ping checks for this host
+	PingTimeout time.Duration `yaml:"ping_timeout"` // Maximum ping timeout
 
 	BasicChecks []*BasicServiceConfig	`yaml:"basic_checks,omitempty"`
 	ChallengeResponseChecks []*ChallengeResponseConfig	`yaml:"challenge_reponse_checks,omitempty"`
 	HTTPChecks []*HTTPServiceConfig	`yaml:"http_checks,omitempty"`
 
 	XXX map[string]interface{} `yaml`	// Catch any unknown flags.
+}
+
+func (c *HostConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	*c = DefaultHostConfig
+
+	type plain HostConfig
+	if err := unmarshal((*plain)(c)); err != nil {
+		return err
+	}
+	return nil
 }
 
 // A basic network service.
@@ -77,4 +116,26 @@ type HTTPServiceConfig struct {
 	Username string	// Username for HTTP basic auth
 	Password string // Password for HTTP basic auth
 	BasicServiceConfig
+}
+
+// Borrowed from the Prometheus config logic
+type Duration time.Duration
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	dur, err := strutil.StringToDuration(s)
+	if err != nil {
+		return err
+	}
+	*d = Duration(dur)
+	return nil
+}
+
+// MarshalYAML implements the yaml.Marshaler interface.
+func (d Duration) MarshalYAML() (interface{}, error) {
+	return strutil.DurationToString(time.Duration(d)), nil
 }

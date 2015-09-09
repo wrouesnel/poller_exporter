@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"html/template"
 	"path"
+	"math/rand"
 
 	log "github.com/prometheus/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -18,24 +19,21 @@ import (
 	"github.com/wrouesnel/poller_exporter/config"
 	"github.com/kardianos/osext"
 	"github.com/wrouesnel/poller_exporter/pollers"
+	"time"
 )
 
 var (
 	Version = "0.0.0.dev"
 
-	listenAddress     = flag.String("web.listen-address", ":9113", "Address on which to expose metrics and web interface.")
+	listenAddress     = flag.String("web.listen-address", ":9115", "Address on which to expose metrics and web interface.")
 	metricsPath       = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	configFile		  = flag.String("collector.config", "poller_exporter.yml", "File to load poller config from")
+	skipPing		  = flag.Bool("collector.icmp.disable", false, "Ignore ICMP ping checks of host status (useful if not running as root)")
 )
 
 // Debug-related parameters
 var (
 	 rootDir		  	  = ""	// DEVELOPMENT USE ONLY
-)
-
-// Pollers
-var (
-	MonitoredHosts []pollers.Host
 )
 
 // Compile amber templates out of assetfs
@@ -48,6 +46,7 @@ func MustCompile(filename string) (*template.Template) {
 }
 
 func main() {
+	rand.Seed(time.Now().Unix())
 	flag.Parse()
 
 	// This is only used when we're running in -dev mode with bindata
@@ -84,11 +83,15 @@ func main() {
 
 	})
 
+	var monitoredHosts []*pollers.Host
+
 	router.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		data := struct{
 			Cfg *config.Config
+			Hosts *[]*pollers.Host
 		}{
 			Cfg : cfg,
+			Hosts : &monitoredHosts,
 		}
 		err := tmpl.Execute(w, &data)
 		if err != nil {
@@ -97,10 +100,20 @@ func main() {
 	})
 
 	// Initialize the host pollers
-	MonitoredHosts = make([]pollers.Host, len(cfg.Hosts))
+	monitoredHosts = make([]*pollers.Host, len(cfg.Hosts))
 	for idx, hostCfg := range cfg.Hosts {
 		log.Debugln("Setting up poller for: ", hostCfg.Hostname)
-		MonitoredHosts[idx] = pollers.NewHost(hostCfg)
+		if *skipPing {
+			hostCfg.PingDisable = true
+		}
+		host := pollers.NewHost(hostCfg)
+		monitoredHosts[idx] = host
+		prometheus.MustRegister(host)
+	}
+
+	// Start the poller services
+	for _, host := range monitoredHosts {
+		host.StartPolling()
 	}
 
 	log.Infof("Listening on %s", *listenAddress)

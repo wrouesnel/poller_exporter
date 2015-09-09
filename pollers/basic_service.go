@@ -5,30 +5,26 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"net"
 	"time"
+	"fmt"
+	"crypto/tls"
+	"crypto/x509"
 )
-
-const Namespace = "poller"
 
 type BasicService struct {
 	PortOpen	prometheus.Gauge	// Is the port reachable?
-	Latency		prometheus.Gauge	// Service latency in milliseconds
 
 	Host *Host	// The host this service is attached to
 
 	config.BasicServiceConfig
 }
 
-func (s *BasicService) Describe(ch chan <- *prometheus.Desc) {
+func (s BasicService) Describe(ch chan <- *prometheus.Desc) {
 	//	s.LastPoll.Describe(ch)
 	s.PortOpen.Describe(ch)
-	s.ServiceResponsive.Describe(ch)
-	s.Latency.Describe(ch)
 }
 
-func (s* BasicService) Collect(ch chan <- *prometheus.Metric) {
+func (s BasicService) Collect(ch chan <- prometheus.Metric) {
 	s.PortOpen.Collect(ch)
-	s.ServiceResponsive.Collect(ch)
-	s.Latency.Collect(ch)
 }
 
 func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
@@ -44,27 +40,15 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 				ConstLabels: prometheus.Labels{
 					"name" : opts.Name,
 					"protocol" : opts.Protocol,
-					"port" : opts.Port,
+					"port" : fmt.Sprintf("%d", opts.Port),
 				},
 			},
 		),
-		Latency: prometheus.NewGauge(
-			prometheus.GaugeOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "responsive_boolean",
-				Help: "indicates if the service responds with data",
-				ConstLabels: prometheus.Labels{
-					"name" : opts.Name,
-					"protocol" : opts.Protocol,
-					"port" : opts.Port,
-				},
-			},
-		),
+
 	}
 	newBasicService.BasicServiceConfig = opts
 
-	poller = &newBasicService
+	poller = Poller(newBasicService)
 
 	// If SSL, then return an SSL service instead
 	if opts.UseSSL {
@@ -89,8 +73,8 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 			}, []string{"commonName"}),
 		}
 
-		newSSLservice.BasicService = newBasicService
-		poller = &newSSLservice
+		newSSLservice.BasicService = *newBasicService
+		poller = Poller(newSSLservice)
 	}
 
 	return poller
@@ -99,17 +83,71 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 // Poll implements the actual polling functionality of the service. It is distinct
 // to the prometheus scrapers because we only ever want to run polls on *our*
 // schedule.
-func (s* BasicService) Poll() {
-	// For a basic service we dial the connection and store it.
+func (s BasicService) Poll() {
+	conn, err := s.dialAndScrape()
+	if err != nil {
+		return
+	}
+	defer conn.Close()
 }
 
-// Dial a TCP port with a hard timeout to ensure we don't block forever.
-func (s* BasicService) dialDeadline() (net.Conn, error) {
-	dialer := net.Dialer{
-		Deadline: time.Now().Add(s.Timeout * time.Second)
+// Poll but for the SSL service.
+func (s SSLService) Poll() {
+	conn, err := s.dialAndScrape()
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	// Pass the connection to the TLS handler
+	if s.UseSSL {
+		s.scrapeTLS(conn)
+	}
+}
+
+// Scrape TLS data from a dialed connection
+func (s SSLService) scrapeTLS(conn net.Conn) {
+	tlsConfig := &tls.Config{ InsecureSkipVerify: true }
+	tlsConn := tls.Client(conn, tlsConfig)
+
+	hostcert := tlsConn.ConnectionState().PeerCertificates[0]
+	intermediates := x509.NewCertPool()
+	for _, cert := range tlsConn.ConnectionState().PeerCertificates[1:] {
+		intermediates.AddCert(cert)
 	}
 
-	return Dial(s.Protocol, s.)
+	opts := x509.VerifyOptions{
+		DNSName: s.Host.Hostname,
+		Intermediates: intermediates,
+	}
+
+	if _, err := hostcert.Verify(opts); err != nil {
+		s.SSLValid.WithLabelValues(hostcert.Subject.CommonName).Set(0)
+	} else {
+		s.SSLValid.WithLabelValues(hostcert.Subject.CommonName).Set(1)
+	}
+
+	s.SSLNotAfter.WithLabelValues(hostcert.Subject.CommonName).Set(float64(hostcert.NotAfter.Unix()))
+	s.SSLNotBefore.WithLabelValues(hostcert.Subject.CommonName).Set(float64(hostcert.NotBefore.Unix()))
+}
+
+// Dial and scrape the basic servive parameters
+func (s BasicService) dialAndScrape() (net.Conn, error) {
+	dialer := net.Dialer{
+		Deadline: time.Now().Add(time.Duration(s.Timeout) * time.Second),
+	}
+
+	var err error
+	var conn net.Conn
+
+	conn, err = dialer.Dial(s.Protocol, fmt.Sprintf("%s:%s", s.Host, s.Port))
+	if err != nil {
+		s.PortOpen.Set(0)
+		return conn, err
+	}
+	s.PortOpen.Set(1)
+
+	return conn, err
 }
 
 // An SSL protected service. This can be any type of service, and simply adds

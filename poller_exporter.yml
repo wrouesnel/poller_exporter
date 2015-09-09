@@ -1,11 +1,15 @@
+poll_frequency: 15s
+
 hosts:
   - hostname: php-shared-1
+    ping_timeout: 1s
     basic_checks:
       - name: PHP52-lsapi
         proto: tcp
         port: 5269
 
   - hostname: php-shared-2
+    ping_timeout: 1s
     basic_checks:
       - name: PHP52-lsapi
         proto: tcp

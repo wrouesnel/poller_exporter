@@ -17,8 +17,13 @@ body
             thead
                 tr
                     th Host
+                    th Next Poll
+                    th Ping
                     th Pollers
             tbody
-                each $i, $host in Cfg.Hosts
+                each $i, $host in Hosts
                     tr
                         td #{$host.Hostname}
+                        td #{$host.NextPoll}
+                        td #{$host.Ping}
+                        td #{$host.Pollers}
