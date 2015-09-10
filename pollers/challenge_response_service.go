@@ -21,7 +21,7 @@ func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig
 		"port" : fmt.Sprintf("%d", opts.Port),
 	}
 
-	basePoller := NewBasicService(host, opts)
+	basePoller := NewBasicService(host, opts.BasicServiceConfig)
 
 	newService := ChallengeResponseService{
 		ServiceResponsive: prometheus.NewGauge(
@@ -29,7 +29,7 @@ func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig
 				Namespace: Namespace,
 				Subsystem: "service",
 				Name: "responsive_boolean",
-				Help: "true (1) if the targeted port responded with expected data",
+				Help: "true (1) if the target port responded with expected data",
 				ConstLabels: clabels,
 			},
 		),
@@ -37,17 +37,17 @@ func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig
 
 	newService.Poller = basePoller
 
-	return &Poller(newService)
+	return Poller(&newService)
 }
 
 func (s *ChallengeResponseService) Describe(ch chan <- *prometheus.Desc) {
 	s.ServiceResponsive.Describe(ch)
-	Poller.Describe(ch)
+	s.Poller.Describe(ch)
 }
 
 func (s *ChallengeResponseService) Collect(ch chan <- prometheus.Metric) {
 	s.ServiceResponsive.Collect(ch)
-	Poller.Collect(ch)
+	s.Poller.Collect(ch)
 }
 
 func (s *ChallengeResponseService) Poll() {

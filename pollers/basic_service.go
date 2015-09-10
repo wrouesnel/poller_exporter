@@ -6,8 +6,6 @@ import (
 	"net"
 	"time"
 	"fmt"
-	"crypto/tls"
-	"crypto/x509"
 	"github.com/prometheus/log"
 	"math"
 )
@@ -16,8 +14,7 @@ type BasicService struct {
 	PortOpen	prometheus.Gauge	// Is the port reachable?
 
 	succeeding	bool // Indicates if the poller's last check succeeded overall
-
-	Host *Host	// The host this service is attached to
+	host *Host	// The host this service is attached to
 
 	config.BasicServiceConfig
 }
@@ -32,6 +29,10 @@ func (s *BasicService) Port() uint64 {
 
 func (s *BasicService) Status() bool {
 	return s.succeeding
+}
+
+func (s *BasicService) Host() *Host {
+	return s.host
 }
 
 func (s *BasicService) Describe(ch chan <- *prometheus.Desc) {
@@ -67,7 +68,7 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 	}
 	newBasicService.PortOpen.Set(math.NaN())
 	newBasicService.BasicServiceConfig = opts
-	newBasicService.Host = host
+	newBasicService.host = host
 
 	poller = Poller(newBasicService)
 
@@ -117,14 +118,14 @@ func (s *BasicService) Poll() {
 // Implements the real polling functionality, but returns the connection object
 // so other classes can inherit it.
 func (s *BasicService) doPoll() net.Conn {
-	log.Debugln("Dialing basic service", s.Host.Hostname, s.Port(), s.Name(),)
+	log.Debugln("Dialing basic service", s.Host().Hostname, s.Port(), s.Name(),)
 	conn, err := s.dialAndScrape()
 	if err != nil {
-		log.Infoln("Error", s.Host.Hostname, s.Port(), s.Name(), err)
+		log.Infoln("Error", s.Host().Hostname, s.Port(), s.Name(), err)
 		return nil
 	}
 
-	log.Infoln("Success", s.Host.Hostname, s.Port(), s.Name())
+	log.Infoln("Success", s.Host().Hostname, s.Port(), s.Name())
 	s.succeeding = true
 
 	return conn
@@ -139,7 +140,7 @@ func (s *BasicService) dialAndScrape() (net.Conn, error) {
 	var err error
 	var conn net.Conn
 
-	conn, err = dialer.Dial(s.Protocol, fmt.Sprintf("%s:%d", s.Host.Hostname, s.Port()))
+	conn, err = dialer.Dial(s.Protocol, fmt.Sprintf("%s:%d", s.Host().Hostname, s.Port()))
 	if err != nil {
 		s.PortOpen.Set(0)
 		return conn, err

@@ -39,20 +39,12 @@ func (s *SSLService) Collect(ch chan<- prometheus.Metric) {
 
 // Poll but for the SSL service.
 func (s *SSLService) Poll() {
-	conn, err := s.dialAndScrape()
-	if err != nil {
-		log.Infoln("Error", s.Host.Hostname, s.Port(), s.Name(), err)
-		return
+	conn := s.doPoll()
+	if conn != nil {
+		log.Infoln("Success", s.Host().Hostname, s.Port(), s.Name())
+		conn.Close()
 	}
-	defer conn.Close()
 
-	log.Infoln("Success", s.Host.Hostname, s.Port(), s.Name())
-	s.succeeding = true
-
-	// Pass the connection to the TLS handler
-	if s.UseSSL {
-
-	}
 }
 
 func (s *SSLService) doPoll() net.Conn {
@@ -78,7 +70,7 @@ func (s *SSLService) scrapeTLS(conn net.Conn) net.Conn {
 	}
 
 	opts := x509.VerifyOptions{
-		DNSName:       s.Host.Hostname,
+		DNSName:       s.Host().Hostname,
 		Intermediates: intermediates,
 	}
 

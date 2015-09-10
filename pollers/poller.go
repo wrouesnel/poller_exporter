@@ -15,6 +15,7 @@ type Poller interface {
 	Name() string // Returns the name of the poller
 	Port() uint64 // Returns the port of the poller
 	Status() bool // Returns the overall status of the service
+	Host() *Host // Returns the attached host of the service
 
 	Describe(ch chan <- *prometheus.Desc)
 	Collect(ch chan <- prometheus.Metric)
