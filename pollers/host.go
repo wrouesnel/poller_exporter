@@ -76,16 +76,16 @@ func NewHost(opts config.HostConfig) *Host {
 	newHost.HostConfig = opts
 
 	// Default everything to NaN since we don't know them
-	newHost.NumPolls.Set(math.NaN())
+	newHost.NumPolls.Set(0)	// Except this one.
 	newHost.Resolvable.Set(math.NaN())
 	newHost.PathReachable.Set(math.NaN())
 	newHost.Latency.Set(math.NaN())
 	newHost.LastPollTime.Set(math.NaN())
 
 	// Setup it's services
-	//	for _, basicCfg := range opts.BasicChecks {
-	//
-	//	}
+	for _, basicCfg := range opts.BasicChecks {
+		newHost.Pollers = append(newHost.Pollers, NewBasicService(&newHost, *basicCfg))
+	}
 	//
 	//	for _, crCfg := range opts.ChallengeResponseChecks {
 	//
@@ -121,6 +121,11 @@ func (s *Host) Describe(ch chan<- *prometheus.Desc) {
 	s.Latency.Describe(ch)
 	s.Resolvable.Describe(ch)
 	s.PathReachable.Describe(ch)
+	s.NumPolls.Describe(ch)
+
+	for _, poller := range s.Pollers {
+		poller.Describe(ch)
+	}
 }
 
 func (s *Host) Collect(ch chan<- prometheus.Metric) {
@@ -129,6 +134,11 @@ func (s *Host) Collect(ch chan<- prometheus.Metric) {
 	s.Latency.Collect(ch)
 	s.Resolvable.Collect(ch)
 	s.PathReachable.Collect(ch)
+	s.NumPolls.Collect(ch)
+
+	for _, poller := range s.Pollers {
+		poller.Collect(ch)
+	}
 }
 
 func (s *Host) StartPolling() {
@@ -145,8 +155,11 @@ func (s *Host) StartPolling() {
 
 		pollTimer := time.NewTimer(time.Duration(s.PollFrequency))
 		for {
+			s.Poll()	// Do the Poll
+
+			// Wait for the timer for next poll.
+			log.Debugln("Waiting for poll timer", s.Hostname)
 			<- pollTimer.C
-			s.Poll()
 			pollTimer.Reset(s.NextPoll())
 		}
 	}()
@@ -172,6 +185,11 @@ func (s *Host) Poll() {
 	if !s.PingDisable {
 		s.doPing()
 	}
+
+	// Call poller methods
+	for _, poller := range s.Pollers {
+		poller.Poll()
+	}
 }
 
 // Do an ICMP ping. Borrowed from bbrazil's blackbox exporter.
@@ -181,33 +199,21 @@ func (s *Host) doPing() {
 	pinger.MaxRTT = s.PingTimeout
 	pinger.Size = 1500
 
-	// Channel to handle the responses
-	ch := make(chan bool)
-
-	pinger.OnIdle = func() {
-		log.Infoln(s.Hostname, "ping timeout!")
-		s.ping = math.MaxInt64
-		s.Latency.Set(float64(math.NaN()))
-		ch <- false
-	}
 	pinger.OnRecv = func(ip *net.IPAddr, latency time.Duration) {
 		log.Infoln(s.Hostname, "latency", latency.String())
 		s.ping = latency
-		s.Latency.Set(float64(latency / time.Millisecond))
-		ch <- true
+		s.Latency.Set(float64(latency) / float64(time.Millisecond))
+		s.PathReachable.Set(1)
 	}
 	log.Debugln("Pinging", s.Hostname)
 	err := pinger.Run()
 	if err != nil {
-		log.Errorln("Ping error", err)
-		close(ch)
+		log.Infoln(s.Hostname, "ping timeout!")
+		s.ping = math.MaxInt64
+		s.Latency.Set(float64(math.NaN()))
+		s.PathReachable.Set(0)
 	}
 
-	result := <-ch
-	if result == false {
-		s.PathReachable.Set(0)
-	} else {
-		s.PathReachable.Set(1)
-	}
+	log.Debugln(s.Hostname, "is reachable!")
 }
 

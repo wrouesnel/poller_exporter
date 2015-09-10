@@ -25,5 +25,26 @@ body
                     tr
                         td #{$host.Hostname}
                         td #{$host.NextPoll}
-                        td #{$host.Ping}
-                        td #{$host.Pollers}
+
+                        if $host.PingDisable
+                            td Pinger Disabled
+                        else
+                            td #{$host.Ping}
+
+                        td
+                            table.table
+                                thead
+                                    tr
+                                        th Name
+                                        th Port
+                                        th Status
+                                tbody
+                                    each $i, $poller in $host.Pollers
+                                        tr
+                                            td #{$poller.Name}
+                                            td #{$poller.Port}
+                                            td
+                                                if $poller.Status
+                                                    span.label.label-success OK
+                                                else
+                                                    span.label.label-danger Failed

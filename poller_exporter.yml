@@ -7,6 +7,7 @@ hosts:
       - name: PHP52-lsapi
         proto: tcp
         port: 5269
+        timeout: 5s
 
   - hostname: php-shared-2
     ping_timeout: 1s
@@ -14,3 +15,4 @@ hosts:
       - name: PHP52-lsapi
         proto: tcp
         port: 5269
+        timeout: 5s

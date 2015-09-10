@@ -92,7 +92,7 @@ type BasicServiceConfig struct {
 	Name		string			`yaml:"name"`		// Name of the service
 	Protocol	string			`yaml:"proto"`		// TCP or UDP
 	Port		uint64			`yaml:"port"`		// Port number of the service
-	Timeout		uint64			`yaml:"timeout"`		// Number of seconds to wait for response
+	Timeout		Duration		`yaml:"timeout"`		// Number of seconds to wait for response
 	UseSSL		bool			`yaml:"ssl,omitempty"`		// The service uses SSL
 
 	XXX map[string]interface{} `yaml`	// Catch any unknown flags.
