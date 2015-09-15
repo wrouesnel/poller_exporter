@@ -1,18 +1,951 @@
 poll_frequency: 15s
 
 hosts:
-  - hostname: php-shared-1
-    ping_timeout: 1s
-    basic_checks:
-      - name: PHP52-lsapi
-        proto: tcp
-        port: 5269
-        timeout: 5s
-
-  - hostname: php-shared-2
-    ping_timeout: 1s
-    basic_checks:
-      - name: PHP52-lsapi
-        proto: tcp
-        port: 5269
-        timeout: 5s
+  - hostname: 000.ezyreg.com
+    ping_timeout: 5s
+  - hostname: a3-a.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: a3-b.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: a4-a.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: a4-b.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: a4-c.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: a4-d.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: a6-a.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: a6-b.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: ad-2.iis.netregistry.net
+    ping_timeout: 5s
+  - hostname: amazon64.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: apache-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: apache-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: apps.iis.netregistry.net
+    ping_timeout: 5s
+  - hostname: asp-ss.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: b3-1.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: b3-2.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: bing.iis.netregistry.net
+    ping_timeout: 5s
+  - hostname: blade-1.dev.netregistry.net
+    ping_timeout: 5s
+  - hostname: blade-2.dev.netregistry.net
+    ping_timeout: 5s
+  - hostname: blade-3.dev.netregistry.net
+    ping_timeout: 5s
+  - hostname: border-1.network.netregistry.net
+    ping_timeout: 5s
+  - hostname: border-2.network.netregistry.net
+    ping_timeout: 5s
+  - hostname: chat.netregistry.com.au
+    ping_timeout: 5s
+  - hostname: control5.tppinternet.net.au
+    ping_timeout: 5s
+  - hostname: corba.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: core-switch-1.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: core-switch-2.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: cp100.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp101.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp102.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp103.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp104.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp105.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp106.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp107.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp108.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp109.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp10.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp110.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp111.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp112.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp113.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp114.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp115.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp116.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp117.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp118.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp119.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp11.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp120.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp121.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp122.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp123.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp124.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp125.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp126.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp127.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp128.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp129.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp12.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp130.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp131.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp132.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp133.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp134.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp135.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp136.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp137.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp138.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp139.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp13.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp140.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp141.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp142.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp143.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp144.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp145.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp146.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp147.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp148.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp149.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp14.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp150.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp151.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp152.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp153.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp154.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp155.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp156.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp157.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp158.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp159.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp15.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp160.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp161.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp162.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp163.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp164.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp165.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp166.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp167.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp168.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp169.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp16.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp170.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp171.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp172.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp173.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp174.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp175.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp176.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp177.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp178.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp179.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp17.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp180.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp181.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp182.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp183.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp184.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp185.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp186.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp187.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp188.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp189.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp18.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp190.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp191.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp192.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp193.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp194.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp195.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp196.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp197.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp198.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp199.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp19.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp1.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp200.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp201.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp202.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp203.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp204.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp205.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp206.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp207.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp208.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp209.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp20.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp210.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp211.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp212.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp213.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp216.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp21.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp22.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp23.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp24.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp25.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp26.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp27.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp28.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp29.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp2.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp30.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp31.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp32.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp33.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp34.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp35.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp36.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp37.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp38.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp39.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp3.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp40.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp41.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp42.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp43.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp44.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp45.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp46.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp47.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp48.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp49.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp4.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp50.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp51.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp52.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp53.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp54.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp55.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp56.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp57.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp58.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp59.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp5.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp60.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp61.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp62.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp63.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp64.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp65.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp66.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp67.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp68.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp69.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp6.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp70.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp71.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp72.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp73.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp74.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp75.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp76.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp77.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp78.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp79.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp7.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp80.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp81.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp82.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp83.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp84.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp85.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp86.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp87.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp88.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp89.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp8.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp90.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp91.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp92.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp93.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp94.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp95.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp96.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp97.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp98.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp99.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cp9.ezyreg.com
+    ping_timeout: 5s
+  - hostname: cpdb.ezyreg.com
+    ping_timeout: 5s
+  - hostname: crdatabase.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: cron.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: crystalreports.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dayman.twoplums.com.au
+    ping_timeout: 5s
+  - hostname: db-int-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: db-int-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ditepp.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dit-ns.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dns.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dovecot-proxy-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dovecot-proxy-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dovecot-shared-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dovecot-shared-4.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dovecot-shared-5.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dovecot-shared-6.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dovecot-shared-7.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dovecot-shared-8.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dovecot-sieve-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: dovecot-sieve-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: emailcontrol.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: equinix-dev-fw.network.netregistry.net
+    ping_timeout: 5s
+  - hostname: es-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: es-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: f6220-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: f6220-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: frontpage.ezyreg.com
+    ping_timeout: 5s
+  - hostname: ftp-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ftp-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: govau-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: greentape.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: gsav.iis.netregistry.net
+    ping_timeout: 5s
+  - hostname: havp.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: hyperv-4.iis.netregistry.net
+    ping_timeout: 5s
+  - hostname: idoit.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: iis-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: iis-3.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: iis7-1-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: iis7-1-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: iis7-1-3.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: iis7-2-2.iis.netregistry.net
+    ping_timeout: 5s
+  - hostname: iis7-2-3.iis.netregistry.net
+    ping_timeout: 5s
+  - hostname: iis7-2-automation.iis.netregistry.net
+    ping_timeout: 5s
+  - hostname: iis-ad-1.iis.netregistry.net
+    ping_timeout: 5s
+  - hostname: iis-ad.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: jsp-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ldap-1.ezyreg.com
+    ping_timeout: 5s
+  - hostname: ldap-2.ezyreg.com
+    ping_timeout: 5s
+  - hostname: ldap-nfs-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ldap-nfs-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ldap-nfs-3.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: logs.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: loop0-asbr1.network.netregistry.net
+    ping_timeout: 5s
+  - hostname: loop0-asbr2.network.netregistry.net
+    ping_timeout: 5s
+  - hostname: loopback1-ssg550-1.network.netregistry.net
+    ping_timeout: 5s
+  - hostname: loopback1-ssg550-2.network.netregistry.net
+    ping_timeout: 5s
+  - hostname: lyris.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mailmonitoring.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mail.netregistry.net
+    ping_timeout: 5s
+  - hostname: mssql-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mssql-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mssql-3.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mssql-4.iis.netregistry.net
+    ping_timeout: 5s
+  - hostname: mx-shared-3.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mx-shared-4.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mx-shared-5.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mx-shared-6.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mysql-1.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: mysql-int.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mysql-rep-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mysql-shared-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mysql-shared-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: mysql-shared-3.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: n6040-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: n6040-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: n6040e3-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: n6040e3-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: n6070-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: n6070-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: n6270-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: n6270-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: new-lb1-mgt.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: new-lb2-mgt.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: nrcrmdb.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: nrcrmdb-standby.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ns01.ezyreg.com
+    ping_timeout: 5s
+  - hostname: ns02.ezyreg.com
+    ping_timeout: 5s
+  - hostname: ns1-atrato.netregistry.net
+    ping_timeout: 5s
+  - hostname: ns1-dct.netregistry.net
+    ping_timeout: 5s
+  - hostname: ns-1.ezyreg.com
+    ping_timeout: 5s
+  - hostname: ns1-he.netregistry.net
+    ping_timeout: 5s
+  - hostname: ns1-isr.netregistry.net
+    ping_timeout: 5s
+  - hostname: ns1-nr.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ns1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ns1-tgb.netregistry.net
+    ping_timeout: 5s
+  - hostname: ns-2.ezyreg.com
+    ping_timeout: 5s
+  - hostname: ns2-nr.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: null.network.netregistry.net
+    ping_timeout: 5s
+  - hostname: onms1.netregistry.net
+    ping_timeout: 5s
+  - hostname: ospf-a1.network.netregistry.net
+    ping_timeout: 5s
+  - hostname: ospf-a2.network.netregistry.net
+    ping_timeout: 5s
+  - hostname: ox-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ox-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ox-db-master.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ox-db-slave.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ox-garb.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: pgsql.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-10.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-11.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-12.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-13.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-14.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-15.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-3.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-4.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-5.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-6.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-7.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-8.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: php-shared-9.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: pravail.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: psql-int.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: puppet.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: qrm-active.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: qrm-passive.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: qrm.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a1-1_2-1-2_cb18.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a1-4_2-2-2_cb18.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a2-2_2-1-2_cb35.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a2-3_2-2-2_cb35.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a3-1_2-2-2_cb17.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a3-2_2-1-2_cb17.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a3-3_2-1-2_cb16.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a3-4_2-2-2_cb16.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a4-1_2-1-2_cb15.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a4-2_2-3-4_cb44.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a4-3_2-1-5_cb44.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a4-4_2-2-2_cb15.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a5-1_2-1-2_cb14.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a5-2_2-1-5_cb32.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a5-3_2-3-4_cb32.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a5-4_2-2-2_cb14.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a6-2_1-1-2_cb13.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_a6-3_2-2-2_cb13.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b1-1_2-1-1_cb58.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b1-2_2-1-1_cb39.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b1-3_2-2-1_cb39.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b1-4_2-2-1_cb58.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b2-2_2-1-1_cb57.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b2-3_2-2-1_cb57.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b3-2_2-1-1_cb56.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b3-3_2-2-1_cb56.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b4-1_2-1-2_cb54.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b4-2_2-1-1_cb55.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b4-3_2-2-1_cb55.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b4-4_2-2-1_cb54.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b5-1_2-1-2_cb53.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b5-2_2-1-2_cb12.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b5-3_2-1-2_cb12.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_b5-4_2-2-1_cb53.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_comms1-1_2-1-2_cb34.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rail_b2-22_comms1-2_2-2-2_cb34.power.netregistry.net
+    ping_timeout: 5s
+  - hostname: rancid.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: recursor-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: recursor-1.vps.netregistry.net
+    ping_timeout: 5s
+  - hostname: recursor-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: recursor-2.vps.netregistry.net
+    ping_timeout: 5s
+  - hostname: redirector.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: REGISTRY
+    ping_timeout: 5s
+  - hostname: salesforce.netregistry.com.au
+    ping_timeout: 5s
+  - hostname: samhain.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: seapi.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: sflow-xen.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: shared-backup-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: shared-backup-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: shared-backup-3.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: shell.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: smarthost.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: smtp-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: smtp-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: smtp-3.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: smtp-4.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: snort.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: spamexpert-1.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: spamexpert-2.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: spamexpert-3.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: spamexpert-4.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: support.netregistry.net
+    ping_timeout: 5s
+  - hostname: syslog.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: tacacs.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: tacacs.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: Test
+    ping_timeout: 5s
+  - hostname: theconsole-s-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: theconsole-s-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: theconsole-s-3.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: tppepp.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: tppepp.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: traffic-services.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: usa.netregistry.net
+    ping_timeout: 5s
+  - hostname: vcloud-meter.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-a2-1.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-a2-2.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-a4-q1-1.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-a4-q1-2.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-a4-q2-1.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-a4-q2-2.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-a4-q3-1.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-a4-q3-2.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-b4-a.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-b4-b.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-b4-bl2-1.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-b4-bl2-2.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-b4-bl2-3.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-b4-bl2-4.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-b4-bl2-6.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-b4-c.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vlan1000-b4-d.core.netregistry.net
+    ping_timeout: 5s
+  - hostname: vps-f5-1.servers.netregistry.net
+    ping_timeout: 5s
+  - hostname: webmail-shared-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: webmail-shared-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: webrt.netregistry.net
+    ping_timeout: 5s
+  - hostname: ws-shared-1.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ws-shared-2.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: ws-shared-3.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: wsus.private.netregistry.net
+    ping_timeout: 5s
+  - hostname: www.netregistry.com.au
+    ping_timeout: 5s
+  - hostname: www.tppwholesale.com.au
+    ping_timeout: 5s
+  - hostname: www.webcentral.com.au
+    ping_timeout: 5s
+  - hostname: www.ziphosting.com.au
+    ping_timeout: 5s
+  - hostname: xen-dit.private.netregistry.net
+    ping_timeout: 5s

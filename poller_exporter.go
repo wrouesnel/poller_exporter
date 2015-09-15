@@ -101,19 +101,37 @@ func main() {
 
 	// Initialize the host pollers
 	monitoredHosts = make([]*pollers.Host, len(cfg.Hosts))
-	for idx, hostCfg := range cfg.Hosts {
+
+	// We don't allow duplicate hosts, but also don't want to panic just due
+	// to a typo, so keep track and skip duplicates here.
+	seenHosts := make(map[string]bool)
+
+	realidx := 0
+	for _, hostCfg := range cfg.Hosts {
 		log.Debugln("Setting up poller for: ", hostCfg.Hostname)
 		if *skipPing {
 			hostCfg.PingDisable = true
 		}
+		if _, ok := seenHosts[hostCfg.Hostname]; ok {
+			log.Warnln("Discarding repeat configuration of same hostname", hostCfg.Hostname)
+			continue
+		}
 		host := pollers.NewHost(hostCfg)
-		monitoredHosts[idx] = host
+		monitoredHosts[realidx] = host
 		prometheus.MustRegister(host)
+
+		seenHosts[hostCfg.Hostname] = true
+		realidx++
 	}
+
+	// Trim monitoredHosts to the number we actually used
+	monitoredHosts = monitoredHosts[0:realidx+1]
 
 	// Start the poller services
 	for _, host := range monitoredHosts {
-		host.StartPolling()
+		if host != nil {
+			host.StartPolling()
+		}
 	}
 
 	log.Infof("Listening on %s", *listenAddress)
