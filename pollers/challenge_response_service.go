@@ -5,14 +5,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/wrouesnel/poller_exporter/config"
 	"fmt"
-	"regexp"
 	"bytes"
 	"time"
 )
 
 type ChallengeResponseService struct {
 	ServiceResponsive prometheus.Gauge	// Indicates if the service responded with expected data
-
 	serviceResponsive bool
 
 	Poller
@@ -47,6 +45,10 @@ func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig
 	return Poller(&newService)
 }
 
+func (s *ChallengeResponseService) Status() bool {
+	return s.serviceResponsive
+}
+
 func (s *ChallengeResponseService) Describe(ch chan <- *prometheus.Desc) {
 	s.ServiceResponsive.Describe(ch)
 	s.Poller.Describe(ch)
@@ -73,10 +75,10 @@ func (s *ChallengeResponseService) Poll() {
 	}
 
 	// Set deadline for all reads/writes to complete
-	conn.SetDeadline(time.Now().Add(s.Timeout))
+	conn.SetDeadline(time.Now().Add(time.Duration(s.Timeout)))
 
 	// Check for a challenge literal
-	if s.ChallengeLiteral != "" {
+	if len(s.ChallengeLiteral) != 0 {
 		// Send the challenge literal
 		_, err := conn.Write(s.ChallengeLiteral)
 		if err != nil {
@@ -94,17 +96,21 @@ func (s *ChallengeResponseService) Poll() {
 	// Read bytes until the response can be matched or timeout.
 	serviceResponded := false
 	for {
-
 		nbytes, err := conn.Read(currentBytes)
-		nTotalBytes += nbytes
-		allBytes = append(allBytes, nbytes...)
+		nTotalBytes += uint64(nbytes)
+		allBytes = append(allBytes, currentBytes...)
 
 		// Try and match.
 		if s.ResponseRegex != nil {
-			serviceResponded = s.ResponseRegex.Match(allBytes)
+			if s.ResponseRegex.Match(allBytes) {
+				serviceResponded = true
+				log.Debugln("Matched regex after", nTotalBytes, "bytes")
+				break
+			}
 		} else {
 			if bytes.HasPrefix(allBytes, s.ResponseLiteral) {
 				serviceResponded = true
+				log.Debugln("Matched byte literal after", nTotalBytes, "bytes")
 				break
 			}
 		}

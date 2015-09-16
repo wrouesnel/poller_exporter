@@ -86,10 +86,10 @@ func NewHost(opts config.HostConfig) *Host {
 	for _, basicCfg := range opts.BasicChecks {
 		newHost.Pollers = append(newHost.Pollers, NewBasicService(&newHost, *basicCfg))
 	}
-	//
-	//	for _, crCfg := range opts.ChallengeResponseChecks {
-	//
-	//	}
+
+	for _, crCfg := range opts.ChallengeResponseChecks {
+		newHost.Pollers = append(newHost.Pollers, NewChallengeResponseService(&newHost, *crCfg))
+	}
 	//
 	//	for _, httpCfg := range opts.HTTPChecks {
 	//
@@ -141,17 +141,19 @@ func (s *Host) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func (s *Host) StartPolling() {
+func (s *Host) StartPolling(delayStart bool) {
 	go func() {
 		log.Infoln("Polling", s.Hostname,
-			"interval", time.Duration(s.PollFrequency).String(),
-			"timeout", s.PingTimeout)
+			"poll_frequency", time.Duration(s.PollFrequency).String(),
+			"ping_timeout", time.Duration(s.PingTimeout).String())
 
 		// Delay the poll start by a random amount of the frequency
-		startDelay := time.Duration(rand.Float64() * float64(s.PollFrequency))
-		startTimer := time.NewTimer(startDelay)
-		log.Debugln("Waiting", startDelay.String(),"to start", s.Hostname)
-		<- startTimer.C
+		if delayStart {
+			startDelay := time.Duration(rand.Float64() * float64(s.PollFrequency))
+			startTimer := time.NewTimer(startDelay)
+			log.Debugln("Waiting", startDelay.String(), "to start", s.Hostname)
+			<-startTimer.C
+		}
 
 		pollTimer := time.NewTimer(time.Duration(s.PollFrequency))
 		for {
@@ -196,7 +198,7 @@ func (s *Host) Poll() {
 func (s *Host) doPing() {
 	pinger := fastping.NewPinger()
 	pinger.AddIP(s.IP)
-	pinger.MaxRTT = s.PingTimeout
+	pinger.MaxRTT = time.Duration(s.PingTimeout)
 	pinger.Size = 1500
 
 	pinger.OnRecv = func(ip *net.IPAddr, latency time.Duration) {

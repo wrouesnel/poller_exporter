@@ -8,6 +8,11 @@ import (
 	"time"
 	"github.com/prometheus/prometheus/util/strutil"
 	"regexp"
+	//"errors"
+	"strconv"
+	"fmt"
+	"strings"
+	"errors"
 )
 
 var (
@@ -18,14 +23,18 @@ var (
 	DefaultHostConfig HostConfig = HostConfig{
 		PollFrequency: DefaultConfig.PollFrequency,
 	}
+
+	DefaultBasicServiceConfig = BasicServiceConfig{}
+	DefaultChallengeResponseServiceConfig = ChallengeResponseConfig{}
 )
 
 func Load(s string) (*Config, error) {
 	cfg := new(Config)
+	*cfg = DefaultConfig
 
 	// Important: we treat the yaml file as a big list, and unmarshal to our
 	// big list here.
-	err := yaml.Unmarshal([]byte(s), &cfg)
+	err := yaml.Unmarshal([]byte(s), cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -42,8 +51,13 @@ func LoadFromFile(filename string) (*Config, error) {
 }
 
 type Config struct {
-	PollFrequency Duration `yaml:poll_frequency,omitempty` // Default polling frequency
-	Hosts []HostConfig	`yaml:hosts`// List of hosts which are to be polled
+	PollFrequency Duration `yaml:"poll_frequency,omitempty"` // Default polling frequency for hosts
+	PingTimeout	Duration `yaml:"ping_timeout,omitempty"` // Default ping time out for hosts
+	Timeout Duration `yaml:"timeout,omitempty"`	// Default service IO timeout
+	MaxBytes uint64		`yaml:"max_bytes,omitempty"` // Default maximum bytes to read from services
+	PingDisable bool `yaml:"disable_ping,omitempty"`	// Disable ping checks by default
+
+	Hosts []HostConfig	`yaml:"hosts"`// List of hosts which are to be polled
 
 	XXX map[string]interface{} `yaml`	// Catch any unknown flags.
 
@@ -58,9 +72,20 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	// Propagate poll frequency
+	// Propagate host defaults
 	DefaultHostConfig.PollFrequency = c.PollFrequency
-	return nil
+	DefaultHostConfig.PingTimeout = c.PingTimeout
+	DefaultHostConfig.PingDisable = c.PingDisable
+
+	// Propagate service defaults
+	DefaultBasicServiceConfig.Timeout = c.Timeout
+	DefaultChallengeResponseServiceConfig.MaxBytes = c.MaxBytes
+
+	// HACK: Double unmarshal so host config gets set defaults
+	if err := unmarshal((*plain)(c)); err != nil {
+		return err
+	}
+	return checkOverflow(c.XXX, "")
 }
 
 // Defines a host which we want to find service information about.
@@ -68,7 +93,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 type HostConfig struct {
 	Hostname string		`yaml:"hostname"`	// Host or IP to contact
 	PollFrequency Duration `yaml:"poll_frequency,omitempty"` // Frequency to poll this specific host
-	PingDisable bool `yaml:"no_ping,omitempty"`	// Disable ping checks for this host
+	PingDisable bool `yaml:"disable_ping,omitempty"`	// Disable ping checks for this host
 	PingTimeout Duration `yaml:"ping_timeout"` // Maximum ping timeout
 
 	BasicChecks []*BasicServiceConfig	`yaml:"basic_checks,omitempty"`
@@ -85,7 +110,7 @@ func (c *HostConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
-	return nil
+	return checkOverflow(c.XXX, "hosts")
 }
 
 // A basic network service.
@@ -102,21 +127,25 @@ type BasicServiceConfig struct {
 // Similar to a banner check, but first sends the specified data befoe looking
 // for a response.
 type ChallengeResponseConfig struct {
-	ChallengeLiteral string		`yaml:"challenge,omitempty"`
-	ResponseRegex	*regexp.Regexp		`yaml:"response_re,omitempty"`// Regex that must match
-	ResponseLiteral []byte		`yaml:"response,omitempty"`// Literal string that must match
+	ChallengeLiteral Bytes		`yaml:"challenge,omitempty"`
+	ResponseRegex	*Regexp		`yaml:"response_re,omitempty"`// Regex that must match
+	ResponseLiteral Bytes		`yaml:"response,omitempty"`// Literal string that must match
 	MaxBytes uint64				`yaml:"max_bytes,omitempty"` // Maximum number of bytes to read while looking for the response regex. 0 means read until connection closes.
-	BasicServiceConfig
+	BasicServiceConfig			`yaml:",inline"`
 }
 
-func (this ChallengeResponseConfig) UnmarshalYAML() (interface{}, error) {
-	if err := unmarshal(&this); err != nil {
+func (this *ChallengeResponseConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Prevent recursively calling unmarshal
+	*this = DefaultChallengeResponseServiceConfig
+
+	type plain ChallengeResponseConfig
+	if err := unmarshal((*plain)(this)); err != nil {
 		return err
 	}
 
 	// Validate that at least 1 response condition exists
-	if this.ResponseRegex == nil && this.ResponseLiteral == "" {
-		return
+	if this.ResponseRegex == nil && len(this.ResponseLiteral) == 0 {
+		return errors.New("ChallengeResponseConfig validation: requires at least 1 of response_re or response")
 	}
 
 	return nil
@@ -124,13 +153,13 @@ func (this ChallengeResponseConfig) UnmarshalYAML() (interface{}, error) {
 
 // An HTTP speaking service
 type HTTPServiceConfig struct {
-	Verb	string	// HTTP verb to use
-	Host 	string	// HTTP Host header to set
-	QueryString	string	// Query string including URL params
-	BasicAuth bool	// Use HTTP basic auth
-	Username string	// Username for HTTP basic auth
-	Password string // Password for HTTP basic auth
-	BasicServiceConfig
+	Verb	string		`yaml:"verb,omitempty"` // HTTP verb to use
+	Host 	string		`yaml:"host,omitempty"` // HTTP Host header to set
+	QueryString	string	`yaml:"query,omitempty"` // Query string including URL params
+	BasicAuth bool		`yaml:"auth,omitempty"` // Use HTTP basic auth
+	Username string		`yaml:"username,omitempty"` // Username for HTTP basic auth
+	Password string 	`yaml:"password,omitempty"` // Password for HTTP basic auth
+	BasicServiceConfig 	`yaml:",inline"`
 }
 
 // Borrowed from the Prometheus config logic
@@ -155,17 +184,87 @@ func (d Duration) MarshalYAML() (interface{}, error) {
 	return strutil.DurationToString(time.Duration(d)), nil
 }
 
-type Regexp regexp.Regexp
+func (d Duration) String() string {
+	return strutil.DurationToString(time.Duration(d))
+}
 
-func (r *Regexp) UnmarshalYAML(unmarshal func(interface{}) error) error {
+// Implements a custom []byte slice so we can unmarshal one from an escaped string
+type Bytes []byte
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (this *Bytes) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var s string
 	if err := unmarshal(&s); err != nil {
 		return err
 	}
-	rx, err := regexp.Compile(s)
+
+	*this = Bytes(s)
+	return nil
+}
+
+// MarshalYAML implements the yaml.Marshaler interface.
+func (this *Bytes) MarshalYAML() (interface{}, error) {
+	s := string(*this)
+	return strconv.Quote(s), nil
+}
+
+// Regexp encapsulates a regexp.Regexp and makes it YAML marshallable.
+type Regexp struct {
+	regexp.Regexp
+	original string
+}
+
+// NewRegexp creates a new anchored Regexp and returns an error if the
+// passed-in regular expression does not compile.
+func NewRegexp(s string) (*Regexp, error) {
+	regex, err := regexp.Compile(s)
+	if err != nil {
+		return nil, err
+	}
+	return &Regexp{
+		Regexp:   *regex,
+		original: s,
+	}, nil
+}
+
+// MustNewRegexp works like NewRegexp, but panics if the regular expression does not compile.
+func MustNewRegexp(s string) *Regexp {
+	re, err := NewRegexp(s)
+	if err != nil {
+		panic(err)
+	}
+	return re
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (re *Regexp) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	r, err := NewRegexp(s)
 	if err != nil {
 		return err
 	}
-	*r = Regexp(rx)
+	*re = *r
+	return nil
+}
+
+// MarshalYAML implements the yaml.Marshaler interface.
+func (re *Regexp) MarshalYAML() (interface{}, error) {
+	if re != nil {
+		return re.original, nil
+	}
+	return nil, nil
+}
+
+func checkOverflow(m map[string]interface{}, ctx string) error {
+	if len(m) > 0 {
+		var keys []string
+		for k := range m {
+			keys = append(keys, k)
+		}
+		return fmt.Errorf("unknown fields in %s: %s", ctx, strings.Join(keys, ", "))
+	}
 	return nil
 }

@@ -134,7 +134,7 @@ func (s *BasicService) doPoll() net.Conn {
 // Dial and scrape the basic service parameters
 func (s *BasicService) dialAndScrape() (net.Conn, error) {
 	dialer := net.Dialer{
-		Deadline: time.Now().Add(time.Duration(s.Timeout) * time.Second),
+		Deadline: time.Now().Add(time.Duration(s.Timeout)),
 	}
 
 	var err error

@@ -15,6 +15,7 @@ body
                 tr
                     th Host
                     th Next Poll
+                    th Resolved IP
                     th Ping
                     th Pollers
             tbody
@@ -22,7 +23,7 @@ body
                     tr
                         td #{$host.Hostname}
                         td #{$host.NextPoll}
-
+                        td #{$host.IP}
                         if $host.PingDisable
                             td Pinger Disabled
                         else
