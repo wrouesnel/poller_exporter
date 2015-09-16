@@ -7,6 +7,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"time"
 	"github.com/prometheus/prometheus/util/strutil"
+	"regexp"
 )
 
 var (
@@ -68,7 +69,7 @@ type HostConfig struct {
 	Hostname string		`yaml:"hostname"`	// Host or IP to contact
 	PollFrequency Duration `yaml:"poll_frequency,omitempty"` // Frequency to poll this specific host
 	PingDisable bool `yaml:"no_ping,omitempty"`	// Disable ping checks for this host
-	PingTimeout time.Duration `yaml:"ping_timeout"` // Maximum ping timeout
+	PingTimeout Duration `yaml:"ping_timeout"` // Maximum ping timeout
 
 	BasicChecks []*BasicServiceConfig	`yaml:"basic_checks,omitempty"`
 	ChallengeResponseChecks []*ChallengeResponseConfig	`yaml:"challenge_reponse_checks,omitempty"`
@@ -102,9 +103,23 @@ type BasicServiceConfig struct {
 // for a response.
 type ChallengeResponseConfig struct {
 	ChallengeLiteral string		`yaml:"challenge,omitempty"`
-	ResponseRegex	string		`yaml:"response_re,omitempty"`// Regex that must match
-	ResponseLiteral string		`yaml:"response,omitempty"`// Literal string that must match
+	ResponseRegex	*regexp.Regexp		`yaml:"response_re,omitempty"`// Regex that must match
+	ResponseLiteral []byte		`yaml:"response,omitempty"`// Literal string that must match
+	MaxBytes uint64				`yaml:"max_bytes,omitempty"` // Maximum number of bytes to read while looking for the response regex. 0 means read until connection closes.
 	BasicServiceConfig
+}
+
+func (this ChallengeResponseConfig) UnmarshalYAML() (interface{}, error) {
+	if err := unmarshal(&this); err != nil {
+		return err
+	}
+
+	// Validate that at least 1 response condition exists
+	if this.ResponseRegex == nil && this.ResponseLiteral == "" {
+		return
+	}
+
+	return nil
 }
 
 // An HTTP speaking service
@@ -138,4 +153,19 @@ func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // MarshalYAML implements the yaml.Marshaler interface.
 func (d Duration) MarshalYAML() (interface{}, error) {
 	return strutil.DurationToString(time.Duration(d)), nil
+}
+
+type Regexp regexp.Regexp
+
+func (r *Regexp) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	rx, err := regexp.Compile(s)
+	if err != nil {
+		return err
+	}
+	*r = Regexp(rx)
+	return nil
 }
