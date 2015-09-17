@@ -84,16 +84,16 @@ func NewHost(opts config.HostConfig) *Host {
 
 	// Setup it's services
 	for _, basicCfg := range opts.BasicChecks {
-		newHost.Pollers = append(newHost.Pollers, NewBasicService(&newHost, *basicCfg))
+		newHost.Pollers = append(newHost.Pollers, Poller(NewBasicService(&newHost, *basicCfg)))
 	}
 
 	for _, crCfg := range opts.ChallengeResponseChecks {
-		newHost.Pollers = append(newHost.Pollers, NewChallengeResponseService(&newHost, *crCfg))
+		newHost.Pollers = append(newHost.Pollers, Poller(NewChallengeResponseService(&newHost, *crCfg)))
 	}
-	//
-	//	for _, httpCfg := range opts.HTTPChecks {
-	//
-	//	}
+
+	for _, httpCfg := range opts.HTTPChecks {
+		newHost.Pollers = append(newHost.Pollers, Poller(NewHTTPService(&newHost, *httpCfg)))
+	}
 
 	return &newHost
 }

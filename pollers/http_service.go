@@ -19,11 +19,11 @@ type HTTPService struct {
 
 	lastStatus int					// last status code
 
-	Poller
+	ChallengeResponseService
 	config.HTTPServiceConfig
 }
 
-func NewHTTPService(host *Host, opts config.HTTPServiceConfig) Poller {
+func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 	clabels := prometheus.Labels{
 		"hostname" : host.Hostname,
 		"name" : opts.Name,
@@ -31,7 +31,7 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) Poller {
 		"port" : fmt.Sprintf("%d", opts.Port),
 	}
 
-	basePoller := NewBasicService(host, opts.BasicServiceConfig)
+	basePoller := NewChallengeResponseService(host, opts.ChallengeResponseConfig)
 
 	newService := HTTPService{
 		requestDuration: prometheus.NewGauge(prometheus.GaugeOpts{
@@ -57,10 +57,10 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) Poller {
 		}),
 	}
 
-	newService.Poller = basePoller
+	newService.ChallengeResponseService = basePoller
 	newService.HTTPServiceConfig = opts
 
-	return Poller(&newService)
+	return &newService
 }
 
 // Return true if the last polled status was one of the allowed statuses
@@ -109,6 +109,7 @@ func (this *HTTPService) Poll() {
 		requestDuration := float64(time.Now().Sub(requestStartTime) * time.Microsecond)
 		this.requestDuration.Set(requestDuration)
 	}
+	defer conn.Close()
 
 	client := NewDeadlineClient(conn, time.Duration(this.Timeout))
 
@@ -131,7 +132,8 @@ func (this *HTTPService) Poll() {
 	// Get the status
 	this.lastStatus = resp.StatusCode
 
-	// Read the response up to max bytes and look for a match
+	// Call the underlying ChallengeResponse to match on output
+	this.ChallengeResponseService.TryReadMatch(resp.Body)
 }
 
 // NewClient returns a http.Client using the specified http.RoundTripper.

@@ -161,7 +161,7 @@ type HTTPServiceConfig struct {
 	BasicAuth bool		`yaml:"auth,omitempty"` // Use HTTP basic auth
 	Username string		`yaml:"username,omitempty"` // Username for HTTP basic auth
 	Password string 	`yaml:"password,omitempty"` // Password for HTTP basic auth
-	BasicServiceConfig 	`yaml:",inline"`
+	ChallengeResponseConfig 	`yaml:",inline"`
 }
 
 // Borrowed from the Prometheus config logic

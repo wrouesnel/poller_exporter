@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"bytes"
 	"time"
+	"io"
 )
 
 type ChallengeResponseService struct {
@@ -17,7 +18,7 @@ type ChallengeResponseService struct {
 	config.ChallengeResponseConfig
 }
 
-func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig) Poller {
+func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig) *ChallengeResponseService {
 	clabels := prometheus.Labels{
 		"hostname" : host.Hostname,
 		"name" : opts.Name,
@@ -42,7 +43,7 @@ func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig
 	newService.Poller = basePoller
 	newService.ChallengeResponseConfig = opts
 
-	return Poller(&newService)
+	return &newService
 }
 
 func (s *ChallengeResponseService) Status() bool {
@@ -73,21 +74,33 @@ func (s *ChallengeResponseService) Poll() {
 		s.serviceResponsive = false
 		return
 	}
+	defer conn.Close()
 
 	// Set deadline for all reads/writes to complete
 	conn.SetDeadline(time.Now().Add(time.Duration(s.Timeout)))
 
+	result := s.challenge(conn)
+	if result {
+		s.serviceResponsive = s.TryReadMatch(conn)
+	} else {
+		s.serviceResponsive = result
+	}
+}
+
+func (s *ChallengeResponseService) challenge(conn io.Writer) bool {
 	// Check for a challenge literal
 	if len(s.ChallengeLiteral) != 0 {
 		// Send the challenge literal
 		_, err := conn.Write(s.ChallengeLiteral)
 		if err != nil {
 			log.Infoln("Connection error doing ChallengeResponse check:", err)
-			s.serviceResponsive = false
-			return
+			return false
 		}
 	}
+	return true
+}
 
+func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) bool {
 	// Read the response literal
 	var nTotalBytes uint64
 	var allBytes []byte
@@ -125,5 +138,5 @@ func (s *ChallengeResponseService) Poll() {
 			break
 		}
 	}
-	s.serviceResponsive = serviceResponded
+	return serviceResponded
 }

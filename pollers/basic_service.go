@@ -110,9 +110,10 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 // schedule.
 func (s *BasicService) Poll() {
 	conn := s.doPoll()
-	if conn != nil {
-		conn.Close()
+	if conn == nil {
+		return
 	}
+	defer conn.Close()
 }
 
 // Implements the real polling functionality, but returns the connection object
