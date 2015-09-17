@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"fmt"
 	"strings"
-	"errors"
 	"net/url"
+	"github.com/prometheus/log"
 )
 
 var (
@@ -25,8 +25,17 @@ var (
 		PollFrequency: DefaultConfig.PollFrequency,
 	}
 
-	DefaultBasicServiceConfig = BasicServiceConfig{}
-	DefaultChallengeResponseServiceConfig = ChallengeResponseConfig{}
+	DefaultBasicServiceConfig = BasicServiceConfig{
+		Protocol: "tcp",
+	}
+
+	DefaultChallengeResponseServiceConfig = ChallengeResponseConfig{
+		BasicServiceConfig: DefaultBasicServiceConfig,
+	}
+
+	DefaultHTTPServiceConfig = HTTPServiceConfig{
+		ChallengeResponseConfig: DefaultChallengeResponseServiceConfig,
+	}
 )
 
 func Load(s string) (*Config, error) {
@@ -81,6 +90,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// Propagate service defaults
 	DefaultBasicServiceConfig.Timeout = c.Timeout
 	DefaultChallengeResponseServiceConfig.MaxBytes = c.MaxBytes
+	DefaultHTTPServiceConfig.MaxBytes = c.MaxBytes
 
 	// HACK: Double unmarshal so host config gets set defaults
 	if err := unmarshal((*plain)(c)); err != nil {
@@ -98,7 +108,7 @@ type HostConfig struct {
 	PingTimeout Duration `yaml:"ping_timeout"` // Maximum ping timeout
 
 	BasicChecks []*BasicServiceConfig	`yaml:"basic_checks,omitempty"`
-	ChallengeResponseChecks []*ChallengeResponseConfig	`yaml:"challenge_reponse_checks,omitempty"`
+	ChallengeResponseChecks []*ChallengeResponseConfig	`yaml:"challenge_response_checks,omitempty"`
 	HTTPChecks []*HTTPServiceConfig	`yaml:"http_checks,omitempty"`
 
 	XXX map[string]interface{} `yaml`	// Catch any unknown flags.
@@ -125,6 +135,18 @@ type BasicServiceConfig struct {
 	XXX map[string]interface{} `yaml`	// Catch any unknown flags.
 }
 
+func (this *BasicServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Prevent recursively calling unmarshal
+	*this = DefaultBasicServiceConfig
+
+	type plain BasicServiceConfig
+	if err := unmarshal((*plain)(this)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Similar to a banner check, but first sends the specified data befoe looking
 // for a response.
 type ChallengeResponseConfig struct {
@@ -133,6 +155,11 @@ type ChallengeResponseConfig struct {
 	ResponseLiteral Bytes		`yaml:"response,omitempty"`// Literal string that must match
 	MaxBytes uint64				`yaml:"max_bytes,omitempty"` // Maximum number of bytes to read while looking for the response regex. 0 means read until connection closes.
 	BasicServiceConfig			`yaml:",inline"`
+}
+
+type ChallengeResponseConfigValidationError struct {}
+func (r ChallengeResponseConfigValidationError) Error() string {
+	return "validation: requires at least 1 of response_re or response"
 }
 
 func (this *ChallengeResponseConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -146,7 +173,7 @@ func (this *ChallengeResponseConfig) UnmarshalYAML(unmarshal func(interface{}) e
 
 	// Validate that at least 1 response condition exists
 	if this.ResponseRegex == nil && len(this.ResponseLiteral) == 0 {
-		return errors.New("ChallengeResponseConfig validation: requires at least 1 of response_re or response")
+		return error(ChallengeResponseConfigValidationError{})
 	}
 
 	return nil
@@ -162,6 +189,25 @@ type HTTPServiceConfig struct {
 	Username string		`yaml:"username,omitempty"` // Username for HTTP basic auth
 	Password string 	`yaml:"password,omitempty"` // Password for HTTP basic auth
 	ChallengeResponseConfig 	`yaml:",inline"`
+}
+
+func (this *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	*this = DefaultHTTPServiceConfig
+
+	type plain HTTPServiceConfig
+	if err := unmarshal((*plain)(this)); err != nil {
+		log.Debugln(err)
+		return err
+//		switch err.(type) {
+//		default:
+//			return err
+//		case ChallengeResponseConfigValidationError:
+//			// Allowed since HTTP may have no matchers
+//			break
+//		}
+	}
+
+	return nil
 }
 
 // Borrowed from the Prometheus config logic

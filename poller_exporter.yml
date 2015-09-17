@@ -1,15 +1,15 @@
-poll_frequency: 27s
+poll_frequency: 4s
 ping_timeout: 4s
 max_bytes: 12345
 timeout: 10s
 disable_ping: false
 
 hosts:
-  - hostname: mx-shared-3
+  - hostname: php-shared-1
+    proto: tcp
     ping_timeout: 5s
-    challenge_reponse_checks:
-      - name: SMTP
-        proto: tcp
-        port: 25
-        timeout: 10s
-        response_re: '^\d\d\d'
+    http_checks:
+      - verb: GET
+        url: "http://php-shared-1:9100/metrics"
+        port: 9100
+        response: "Metrics"

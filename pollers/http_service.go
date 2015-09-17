@@ -1,23 +1,23 @@
 package pollers
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/wrouesnel/poller_exporter/config"
 	"fmt"
 	"math"
-	"time"
-	"net/http"
 	"net"
-	"net/url"
+	"net/http"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/log"
+	"github.com/wrouesnel/poller_exporter/config"
 )
 
 type HTTPService struct {
 	requestDuration prometheus.Gauge
-	responseSize prometheus.Gauge
+	responseSize    prometheus.Gauge
 	responseSuccess prometheus.Gauge
 
-	lastStatus int					// last status code
+	lastStatus int // last status code
 
 	ChallengeResponseService
 	config.HTTPServiceConfig
@@ -25,39 +25,39 @@ type HTTPService struct {
 
 func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 	clabels := prometheus.Labels{
-		"hostname" : host.Hostname,
-		"name" : opts.Name,
-		"protocol" : opts.Protocol,
-		"port" : fmt.Sprintf("%d", opts.Port),
+		"hostname": host.Hostname,
+		"name":     opts.Name,
+		"protocol": opts.Protocol,
+		"port":     fmt.Sprintf("%d", opts.Port),
 	}
 
 	basePoller := NewChallengeResponseService(host, opts.ChallengeResponseConfig)
 
 	newService := HTTPService{
 		requestDuration: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: Namespace,
-			Subsystem: "service",
-			Name: "http_request_duration_microseconds",
-			Help: "The HTTP request latencies in microseconds.",
+			Namespace:   Namespace,
+			Subsystem:   "service",
+			Name:        "http_request_duration_microseconds",
+			Help:        "The HTTP request latencies in microseconds.",
 			ConstLabels: clabels,
 		}),
 		responseSize: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: Namespace,
-			Subsystem: "service",
-			Name: "http_response_size_bytes",
-			Help: "The HTTP request sizes in bytes.",
+			Namespace:   Namespace,
+			Subsystem:   "service",
+			Name:        "http_response_size_bytes",
+			Help:        "The HTTP request sizes in bytes.",
 			ConstLabels: clabels,
 		}),
 		responseSuccess: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: Namespace,
-			Subsystem: "service",
-			Name: "http_response_success_bool",
-			Help: "Was the last response in the allowed list?",
+			Namespace:   Namespace,
+			Subsystem:   "service",
+			Name:        "http_response_success_bool",
+			Help:        "Was the last response in the allowed list?",
 			ConstLabels: clabels,
 		}),
 	}
 
-	newService.ChallengeResponseService = basePoller
+	newService.ChallengeResponseService = *basePoller
 	newService.HTTPServiceConfig = opts
 
 	return &newService
@@ -74,15 +74,15 @@ func (this *HTTPService) Status() bool {
 	return false
 }
 
-func (this *HTTPService) Describe(ch chan <- *prometheus.Desc) {
+func (this *HTTPService) Describe(ch chan<- *prometheus.Desc) {
 	this.responseSuccess.Describe(ch)
 	this.requestDuration.Describe(ch)
 	this.responseSize.Describe(ch)
 
-	this.Poller.Describe(ch)	// Call base describe
+	this.Poller.Describe(ch) // Call base describe
 }
 
-func (this *HTTPService) Collect( ch chan <- prometheus.Metric) {
+func (this *HTTPService) Collect(ch chan<- prometheus.Metric) {
 	if this.Status() {
 		this.responseSuccess.Set(1)
 	} else {
@@ -98,7 +98,7 @@ func (this *HTTPService) Collect( ch chan <- prometheus.Metric) {
 }
 
 func (this *HTTPService) Poll() {
-	requestStartTime := time.Now()	// Start timing how long the request takes
+	requestStartTime := time.Now() // Start timing how long the request takes
 
 	conn := this.doPoll()
 	if conn == nil {
@@ -108,14 +108,15 @@ func (this *HTTPService) Poll() {
 		// Request end time is a number even if rejected.
 		requestDuration := float64(time.Now().Sub(requestStartTime) * time.Microsecond)
 		this.requestDuration.Set(requestDuration)
+		return
 	}
 	defer conn.Close()
 
-	client := NewDeadlineClient(conn, time.Duration(this.Timeout))
+	client := NewDeadlineClient(conn, time.Duration(this.ChallengeResponseService.Timeout))
 
 	httpreq := &http.Request{
 		Method:     this.Verb,
-		URL:        this.Url,
+		URL:        this.Url.URL,
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
 		ProtoMinor: 1,
@@ -132,8 +133,13 @@ func (this *HTTPService) Poll() {
 	// Get the status
 	this.lastStatus = resp.StatusCode
 
-	// Call the underlying ChallengeResponse to match on output
-	this.ChallengeResponseService.TryReadMatch(resp.Body)
+	// Call the underlying ChallengeResponse to match on output if an output
+	// matcher is specified
+	if !(this.ChallengeResponseService.ResponseRegex == nil &&
+		len(this.ChallengeResponseService.ResponseLiteral) == 0) {
+		this.ChallengeResponseService.TryReadMatch(resp.Body)
+	}
+
 }
 
 // NewClient returns a http.Client using the specified http.RoundTripper.
