@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"strings"
 	"errors"
+	"net/url"
 )
 
 var (
@@ -151,11 +152,12 @@ func (this *ChallengeResponseConfig) UnmarshalYAML(unmarshal func(interface{}) e
 	return nil
 }
 
-// An HTTP speaking service
+// An HTTP speaking service. Does not yet support being a proxy.
+// If UseSSL is not set but you request HTTPS, it'll fail.
 type HTTPServiceConfig struct {
 	Verb	string		`yaml:"verb,omitempty"` // HTTP verb to use
-	Host 	string		`yaml:"host,omitempty"` // HTTP Host header to set
-	QueryString	string	`yaml:"query,omitempty"` // Query string including URL params
+	Url		URL			`yaml:"url,omitempty"`	// HTTP request URL to send
+	SuccessStatuses []int `yaml:"success_status,omitempty"` // List of status codes indicating success
 	BasicAuth bool		`yaml:"auth,omitempty"` // Use HTTP basic auth
 	Username string		`yaml:"username,omitempty"` // Username for HTTP basic auth
 	Password string 	`yaml:"password,omitempty"` // Password for HTTP basic auth
@@ -254,6 +256,34 @@ func (re *Regexp) UnmarshalYAML(unmarshal func(interface{}) error) error {
 func (re *Regexp) MarshalYAML() (interface{}, error) {
 	if re != nil {
 		return re.original, nil
+	}
+	return nil, nil
+}
+
+// URL is a custom URL type that allows validation at configuration load time.
+type URL struct {
+	*url.URL
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface for URLs.
+func (u *URL) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+
+	urlp, err := url.Parse(s)
+	if err != nil {
+		return err
+	}
+	u.URL = urlp
+	return nil
+}
+
+// MarshalYAML implements the yaml.Marshaler interface for URLs.
+func (u URL) MarshalYAML() (interface{}, error) {
+	if u.URL != nil {
+		return u.String(), nil
 	}
 	return nil, nil
 }
