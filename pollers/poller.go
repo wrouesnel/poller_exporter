@@ -4,17 +4,23 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"net"
+	"math"
 )
 
 const Namespace = "poller"
 
-// Implements the basic interface for updating pollers.
+type Status float64
+
+var UNKNOWN = Status(math.NaN())
+const SUCCESS = Status(float64(1))
+const FAILED = Status(float64(0))
+
 type Poller interface {
 	Poll()	// Causes the service to update its internal state.
 
 	Name() string // Returns the name of the poller
 	Port() uint64 // Returns the port of the poller
-	Status() bool // Returns the overall status of the service
+	Status() Status // Returns the overall status of the service
 	Host() *Host // Returns the attached host of the service
 
 	Describe(ch chan <- *prometheus.Desc)

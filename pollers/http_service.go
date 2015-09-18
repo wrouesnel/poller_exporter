@@ -12,12 +12,15 @@ import (
 	"github.com/wrouesnel/poller_exporter/config"
 )
 
+// An HTTP service is a degenerate ChallengeResponse service which does specific
+// status code checking and always reads all the bytes it's sent.
 type HTTPService struct {
-	requestDuration prometheus.Gauge
-	responseSize    prometheus.Gauge
-	responseSuccess prometheus.Gauge
+	successMap map[int]bool	// Map of success code
 
-	lastStatus int // last status code
+	// Metrics
+	responseSuccess prometheus.Gauge	// Returns 1 if the HTTP status code was successful
+
+	lastResponseStatus int // last status code
 
 	ChallengeResponseService
 	config.HTTPServiceConfig
@@ -34,27 +37,22 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 	basePoller := NewChallengeResponseService(host, opts.ChallengeResponseConfig)
 
 	newService := HTTPService{
-		requestDuration: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace:   Namespace,
-			Subsystem:   "service",
-			Name:        "http_request_duration_microseconds",
-			Help:        "The HTTP request latencies in microseconds.",
-			ConstLabels: clabels,
-		}),
-		responseSize: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace:   Namespace,
-			Subsystem:   "service",
-			Name:        "http_response_size_bytes",
-			Help:        "The HTTP request sizes in bytes.",
-			ConstLabels: clabels,
-		}),
+		lastResponseStatus : -1,
+
+		successMap : make(map[int]bool, len(opts.SuccessStatuses)),
+
 		responseSuccess: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
 			Subsystem:   "service",
 			Name:        "http_response_success_bool",
-			Help:        "Was the last response in the allowed list?",
+			Help:        "Was the HTTP response code successful",
 			ConstLabels: clabels,
 		}),
+	}
+
+	// Populate the success map
+	for _, v := range newService.SuccessStatuses {
+		newService.successMap[v] = true
 	}
 
 	newService.ChallengeResponseService = *basePoller
@@ -64,36 +62,26 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 }
 
 // Return true if the last polled status was one of the allowed statuses
-func (this *HTTPService) Status() bool {
+func (this *HTTPService) Status() Status {
 	// TODO: use a map?
-	for _, status := range this.SuccessStatuses {
-		if status == this.lastStatus {
-			return true
-		}
+	if _, ok := this.successMap[this.lastResponseStatus]; ok {
+		return SUCCESS
 	}
-	return false
+	return FAILED
 }
 
 func (this *HTTPService) Describe(ch chan<- *prometheus.Desc) {
 	this.responseSuccess.Describe(ch)
-	this.requestDuration.Describe(ch)
-	this.responseSize.Describe(ch)
 
 	this.Poller.Describe(ch) // Call base describe
 }
 
 func (this *HTTPService) Collect(ch chan<- prometheus.Metric) {
-	if this.Status() {
-		this.responseSuccess.Set(1)
-	} else {
-		this.responseSuccess.Set(0)
-	}
-
+	// HTTP status
+	this.responseSuccess.Set(float64(this.Status()))
 	this.responseSuccess.Collect(ch)
 
-	this.requestDuration.Collect(ch)
-	this.responseSize.Collect(ch)
-
+	// Parent status (challenge response metrics)
 	this.Poller.Collect(ch)
 }
 
@@ -102,7 +90,7 @@ func (this *HTTPService) Poll() {
 
 	conn := this.doPoll()
 	if conn == nil {
-		this.lastStatus = 0
+		this.lastResponseStatus = 0
 		this.responseSize.Set(math.NaN())
 
 		// Request end time is a number even if rejected.
@@ -131,12 +119,11 @@ func (this *HTTPService) Poll() {
 	}
 
 	// Get the status
-	this.lastStatus = resp.StatusCode
+	this.lastResponseStatus = resp.StatusCode
 
 	// Call the underlying ChallengeResponse to match on output if an output
 	// matcher is specified
-	if !(this.ChallengeResponseService.ResponseRegex == nil &&
-		len(this.ChallengeResponseService.ResponseLiteral) == 0) {
+	if this.isReader() {
 		this.ChallengeResponseService.TryReadMatch(resp.Body)
 	}
 

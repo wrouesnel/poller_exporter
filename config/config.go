@@ -9,11 +9,12 @@ import (
 	"github.com/prometheus/prometheus/util/strutil"
 	"regexp"
 	//"errors"
-	"strconv"
+	//"strconv"
 	"fmt"
 	"strings"
 	"net/url"
-	"github.com/prometheus/log"
+	//"github.com/prometheus/log"
+	//"github.com/davecgh/go-spew/spew"
 )
 
 var (
@@ -60,6 +61,11 @@ func LoadFromFile(filename string) (*Config, error) {
 	return Load(string(content))
 }
 
+func Save(cfg *Config) ([]byte, error) {
+	out, err := yaml.Marshal(cfg)
+	return out, err
+}
+
 type Config struct {
 	PollFrequency Duration `yaml:"poll_frequency,omitempty"` // Default polling frequency for hosts
 	PingTimeout	Duration `yaml:"ping_timeout,omitempty"` // Default ping time out for hosts
@@ -69,7 +75,7 @@ type Config struct {
 
 	Hosts []HostConfig	`yaml:"hosts"`// List of hosts which are to be polled
 
-	XXX map[string]interface{} `yaml`	// Catch any unknown flags.
+	XXX map[string]interface{} `yaml:",omitempty"`	// Catch any unknown flags.
 
 	OriginalConfig string	// Original config file contents
 }
@@ -111,7 +117,7 @@ type HostConfig struct {
 	ChallengeResponseChecks []*ChallengeResponseConfig	`yaml:"challenge_response_checks,omitempty"`
 	HTTPChecks []*HTTPServiceConfig	`yaml:"http_checks,omitempty"`
 
-	XXX map[string]interface{} `yaml`	// Catch any unknown flags.
+	XXX map[string]interface{} `yaml:",omitempty"`	// Catch any unknown flags.
 }
 
 func (c *HostConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -129,32 +135,35 @@ type BasicServiceConfig struct {
 	Name		string			`yaml:"name"`		// Name of the service
 	Protocol	string			`yaml:"proto"`		// TCP or UDP
 	Port		uint64			`yaml:"port"`		// Port number of the service
-	Timeout		Duration		`yaml:"timeout"`		// Number of seconds to wait for response
+	Timeout		Duration		`yaml:"timeout,omitempty"`		// Number of seconds to wait for response
 	UseSSL		bool			`yaml:"ssl,omitempty"`		// The service uses SSL
 
-	XXX map[string]interface{} `yaml`	// Catch any unknown flags.
+	XXX map[string]interface{} 	`yaml:",omitempty"`	// Catch any unknown flags.
 }
 
-func (this *BasicServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	// Prevent recursively calling unmarshal
-	*this = DefaultBasicServiceConfig
+// Ideally we'd use this, but go-yaml has problems with nested structs at the
+// moment and I don't have time to debug them.
 
-	type plain BasicServiceConfig
-	if err := unmarshal((*plain)(this)); err != nil {
-		return err
-	}
-
-	return nil
-}
+//func (this *BasicServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+//	// Prevent recursively calling unmarshal
+//	*this = DefaultBasicServiceConfig
+//	fmt.Println()
+//	type plain BasicServiceConfig
+//	if err := unmarshal((*plain)(this)); err != nil {
+//		return err
+//	}
+//
+//	return nil
+//}
 
 // Similar to a banner check, but first sends the specified data befoe looking
 // for a response.
 type ChallengeResponseConfig struct {
-	ChallengeLiteral Bytes		`yaml:"challenge,omitempty"`
+	BasicServiceConfig			`yaml:",inline,omitempty"`
+	ChallengeLiteral *Bytes		`yaml:"challenge,omitempty"`
 	ResponseRegex	*Regexp		`yaml:"response_re,omitempty"`// Regex that must match
-	ResponseLiteral Bytes		`yaml:"response,omitempty"`// Literal string that must match
+	ResponseLiteral *Bytes		`yaml:"response,omitempty"`// Literal string that must match
 	MaxBytes uint64				`yaml:"max_bytes,omitempty"` // Maximum number of bytes to read while looking for the response regex. 0 means read until connection closes.
-	BasicServiceConfig			`yaml:",inline"`
 }
 
 type ChallengeResponseConfigValidationError struct {}
@@ -162,42 +171,48 @@ func (r ChallengeResponseConfigValidationError) Error() string {
 	return "validation: requires at least 1 of response_re or response"
 }
 
-func (this *ChallengeResponseConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	// Prevent recursively calling unmarshal
-	*this = DefaultChallengeResponseServiceConfig
-
-	type plain ChallengeResponseConfig
-	if err := unmarshal((*plain)(this)); err != nil {
-		return err
-	}
-
-	// Validate that at least 1 response condition exists
-	if this.ResponseRegex == nil && len(this.ResponseLiteral) == 0 {
-		return error(ChallengeResponseConfigValidationError{})
-	}
-
-	return nil
-}
+//func (this *ChallengeResponseConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+//	// Prevent recursively calling unmarshal
+//	*this = DefaultChallengeResponseServiceConfig
+//
+//	type plain ChallengeResponseConfig
+//	if err := unmarshal((*plain)(this)); err != nil {
+//		return err
+//	}
+//
+//	if err := unmarshal((*plain)(this)); err != nil {
+//		return err
+//	}
+//
+//	//spew.Print(*this)
+//
+////	// Validate that at least 1 response condition exists
+////	if this.ResponseRegex == nil && this.ResponseLiteral == nil {
+////		return error(ChallengeResponseConfigValidationError{})
+////	}
+//
+//	return nil
+//}
 
 // An HTTP speaking service. Does not yet support being a proxy.
 // If UseSSL is not set but you request HTTPS, it'll fail.
 type HTTPServiceConfig struct {
+	ChallengeResponseConfig 	`yaml:",inline,omitempty"`
 	Verb	string		`yaml:"verb,omitempty"` // HTTP verb to use
 	Url		URL			`yaml:"url,omitempty"`	// HTTP request URL to send
 	SuccessStatuses []int `yaml:"success_status,omitempty"` // List of status codes indicating success
 	BasicAuth bool		`yaml:"auth,omitempty"` // Use HTTP basic auth
 	Username string		`yaml:"username,omitempty"` // Username for HTTP basic auth
 	Password string 	`yaml:"password,omitempty"` // Password for HTTP basic auth
-	ChallengeResponseConfig 	`yaml:",inline"`
 }
 
-func (this *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*this = DefaultHTTPServiceConfig
-
-	type plain HTTPServiceConfig
-	if err := unmarshal((*plain)(this)); err != nil {
-		log.Debugln(err)
-		return err
+//func (this *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+//	*this = DefaultHTTPServiceConfig
+//
+//	type plain HTTPServiceConfig
+//	if err := unmarshal((*plain)(this)); err != nil {
+//		log.Debugln(err)
+//		return err
 //		switch err.(type) {
 //		default:
 //			return err
@@ -205,10 +220,10 @@ func (this *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) 
 //			// Allowed since HTTP may have no matchers
 //			break
 //		}
-	}
-
-	return nil
-}
+//	}
+//
+//	return nil
+//}
 
 // Borrowed from the Prometheus config logic
 type Duration time.Duration
@@ -252,8 +267,10 @@ func (this *Bytes) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // MarshalYAML implements the yaml.Marshaler interface.
 func (this *Bytes) MarshalYAML() (interface{}, error) {
-	s := string(*this)
-	return strconv.Quote(s), nil
+	if len(*this) != 0 {
+		return string(*this), nil
+	}
+	return nil,nil
 }
 
 // Regexp encapsulates a regexp.Regexp and makes it YAML marshallable.

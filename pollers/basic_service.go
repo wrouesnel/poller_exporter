@@ -7,15 +7,14 @@ import (
 	"time"
 	"fmt"
 	"github.com/prometheus/log"
-	"math"
 )
 
 type BasicService struct {
-	PortOpen	prometheus.Gauge	// Is the port reachable?
+	portOpen Status // Was the port successfully accessed?
 
-	succeeding	bool // Indicates if the poller's last check succeeded overall
+	PortOpen	prometheus.Gauge	// Port open metric
+
 	host *Host	// The host this service is attached to
-
 	config.BasicServiceConfig
 }
 
@@ -27,8 +26,8 @@ func (s *BasicService) Port() uint64 {
 	return s.BasicServiceConfig.Port
 }
 
-func (s *BasicService) Status() bool {
-	return s.succeeding
+func (s *BasicService) Status() Status {
+	return s.portOpen
 }
 
 func (s *BasicService) Host() *Host {
@@ -36,11 +35,11 @@ func (s *BasicService) Host() *Host {
 }
 
 func (s *BasicService) Describe(ch chan <- *prometheus.Desc) {
-	//	s.LastPoll.Describe(ch)
 	s.PortOpen.Describe(ch)
 }
 
 func (s *BasicService) Collect(ch chan <- prometheus.Metric) {
+	s.PortOpen.Set(float64(s.portOpen))
 	s.PortOpen.Collect(ch)
 }
 
@@ -55,6 +54,8 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 	}
 
 	newBasicService := &BasicService{
+		host: host,
+		portOpen: UNKNOWN,
 		PortOpen: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: Namespace,
@@ -64,11 +65,8 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 				ConstLabels: clabels,
 			},
 		),
-
+		BasicServiceConfig: opts,
 	}
-	newBasicService.PortOpen.Set(math.NaN())
-	newBasicService.BasicServiceConfig = opts
-	newBasicService.host = host
 
 	poller = Poller(newBasicService)
 
@@ -96,9 +94,8 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 				Help: "SSL certificate can be validated by the scraper process",
 				ConstLabels: clabels,
 			}, []string{"commonName"}),
+			Poller: poller,
 		}
-
-		newSSLservice.Poller = poller
 		poller = Poller(&newSSLservice)	// Turn the SSL service into a Poller
 	}
 
@@ -123,11 +120,11 @@ func (s *BasicService) doPoll() net.Conn {
 	conn, err := s.dialAndScrape()
 	if err != nil {
 		log.Infoln("Error", s.Host().Hostname, s.Port(), s.Name(), err)
-		return nil
+		s.portOpen = FAILED
+	} else {
+		log.Infoln("Success", s.Host().Hostname, s.Port(), s.Name())
+		s.portOpen = SUCCESS
 	}
-
-	log.Infoln("Success", s.Host().Hostname, s.Port(), s.Name())
-	s.succeeding = true
 
 	return conn
 }
@@ -143,10 +140,10 @@ func (s *BasicService) dialAndScrape() (net.Conn, error) {
 
 	conn, err = dialer.Dial(s.Protocol, fmt.Sprintf("%s:%d", s.Host().Hostname, s.Port()))
 	if err != nil {
-		s.PortOpen.Set(0)
-		return conn, err
+		s.portOpen = FAILED
+	} else {
+		s.portOpen = SUCCESS
 	}
-	s.PortOpen.Set(1)
 
 	return conn, err
 }

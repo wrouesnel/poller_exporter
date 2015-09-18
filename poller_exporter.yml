@@ -6,10 +6,18 @@ disable_ping: false
 
 hosts:
   - hostname: php-shared-1
-    proto: tcp
     ping_timeout: 5s
+    basic_checks:
+      - name: Basic node_exporter
+        port: 9100
+    challenge_response_checks:
+      - name: CR node_exporter
+        port: 9100
+        challenge: "GET /metrics HTTP/1.1\r\n\r\n"
+        response_re: "prometheus"
     http_checks:
-      - verb: GET
+      - name: HTTP node_exporter check
+        verb: GET
         url: "http://php-shared-1:9100/metrics"
         port: 9100
         response: "Metrics"

@@ -42,9 +42,11 @@ body
                                             td #{$poller.Name}
                                             td #{$poller.Port}
                                             td
-                                                if $poller.Status
+                                                if $poller.Status == 1
                                                     span.label.label-success OK
-                                                else
+                                                elseif $poller.Status == 0
                                                     span.label.label-danger Failed
+                                                else
+                                                    span.label.label-warning Unknown
         h2 Configuration
         pre #{Cfg.OriginalConfig}
