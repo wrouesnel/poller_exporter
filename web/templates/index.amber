@@ -34,12 +34,14 @@ body
                                 thead
                                     tr
                                         th Name
+                                        th Proto
                                         th Port
                                         th Status
                                 tbody
                                     each $i, $poller in $host.Pollers
                                         tr
                                             td #{$poller.Name}
+                                            td #{$poller.Proto}
                                             td #{$poller.Port}
                                             td
                                                 if $poller.Status == 1

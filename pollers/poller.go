@@ -19,6 +19,7 @@ type Poller interface {
 	Poll()	// Causes the service to update its internal state.
 
 	Name() string // Returns the name of the poller
+	Proto() string // Returns the protocol of the poller
 	Port() uint64 // Returns the port of the poller
 	Status() Status // Returns the overall status of the service
 	Host() *Host // Returns the attached host of the service

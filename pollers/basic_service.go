@@ -34,6 +34,10 @@ func (s *BasicService) Host() *Host {
 	return s.host
 }
 
+func (s *BasicService) Proto() string {
+	return s.Protocol
+}
+
 func (s *BasicService) Describe(ch chan <- *prometheus.Desc) {
 	s.PortOpen.Describe(ch)
 }
