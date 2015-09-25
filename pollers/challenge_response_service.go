@@ -111,7 +111,7 @@ func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig
 
 // Return true if challenger is setup to read responses
 func (this *ChallengeResponseService) isReader() bool {
-	return (this.ResponseRegex == nil && this.ResponseLiteral == nil)
+	return (this.ResponseRegex != nil || this.ResponseLiteral != nil)
 }
 
 // Status is used by the web-UI for quick inspections
@@ -136,22 +136,20 @@ func (s *ChallengeResponseService) Describe(ch chan <- *prometheus.Desc) {
 
 func (s *ChallengeResponseService) Collect(ch chan <- prometheus.Metric) {
 	// Request
-	s.ServiceRequestSuccessful.Set(float64(s.serviceResponsive))
-	if s.serviceResponsive == SUCCESS {
-		s.ServiceRequestSize.Set(s.serviceChallengeSize)
+	s.ServiceRequestSuccessful.Set(float64(s.serviceChallengeable))
+	s.ServiceRequestSize.Set(s.serviceChallengeSize)
+	if s.serviceChallengeTime != 0 { // Nothing should take 0 nanoseconds
 		s.ServiceChallengeTime.Set(float64(s.serviceChallengeTime * time.Microsecond))
 	} else {
-		s.ServiceRequestSize.Set(math.NaN())
 		s.ServiceChallengeTime.Set(math.NaN())
 	}
 
 	// Response
 	s.ServiceRespondedSuccessfully.Set(float64(s.serviceResponsive))
-	if s.serviceResponsive == SUCCESS {
-		s.ServiceResponseSize.Set(s.serviceChallengeSize)
+	s.ServiceResponseSize.Set(s.serviceResponseSize)
+	if s.serviceResponseTime != 0 {	// Nothing should take 0 nanoseconds
 		s.ServiceResponseDuration.Set(float64(s.serviceResponseTime * time.Microsecond))
 	} else {
-		s.ServiceResponseSize.Set(math.NaN())
 		s.ServiceResponseDuration.Set(math.NaN())
 	}
 
@@ -182,7 +180,7 @@ func (this *ChallengeResponseService) Poll() {
 
 	startTime := time.Now()
 	if this.isWriter() {
-		this.serviceChallengeable = this.Challenge(conn)
+		this.serviceChallengeable = this.Challenge(conn)	// Sets this.serviceChallengeSize
 		this.serviceChallengeTime = time.Now().Sub(startTime)
 		if this.isReader() {
 			if this.serviceChallengeable == SUCCESS {
@@ -207,7 +205,7 @@ func (this *ChallengeResponseService) Poll() {
 		this.serviceResponseSize = math.NaN()
 		this.serviceResponseTime = 0
 	}
-
+	log.Debugln("Finished challenge_response poll.")
 }
 
 func (this *ChallengeResponseService) isWriter() bool {
