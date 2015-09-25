@@ -260,7 +260,7 @@ func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) Status {
 		}
 
 		if nTotalBytes >= s.MaxBytes {
-			log.Infoln("Maximum read bytes exceeded during check.")
+			log.Infoln("Maximum read bytes exceeded during check: read", nTotalBytes, ">=", s.MaxBytes)
 			break
 		}
 	}
