@@ -133,7 +133,7 @@ func (c *HostConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // A basic network service.
 type BasicServiceConfig struct {
 	Name		string			`yaml:"name"`		// Name of the service
-	Protocol	string			`yaml:"proto"`		// TCP or UDP
+	Protocol	string			`yaml:"proto,omitempty"`		// TCP or UDP
 	Port		uint64			`yaml:"port"`		// Port number of the service
 	Timeout		Duration		`yaml:"timeout,omitempty"`		// Number of seconds to wait for response
 	UseSSL		bool			`yaml:"ssl,omitempty"`		// The service uses SSL
