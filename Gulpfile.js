@@ -18,7 +18,7 @@ var options = minimist(process.argv.slice(2), knownOptions);
 // Copy the bootstrap minified files and strip the min prefix for production.
 gulp.task('copy bootstrap', function() {
     var infix = "";
-    if (knownOptions.env == 'production') {
+    if (options.env == 'production') {
         infix = ".min";
     }
 
@@ -37,7 +37,7 @@ gulp.task('copy bootstrap', function() {
 });
 
 gulp.task("build assetfs", ['copy bootstrap'], function () {
-    if (knownOptions.env == 'production') {
+    if (options.env == 'production') {
         return run('go-bindata-assetfs -prefix=web web/...').exec();
     } else {
         return run('go-bindata-assetfs -debug -dev -prefix=web web/...').exec();
