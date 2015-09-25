@@ -2,7 +2,6 @@ package pollers
 
 import (
 	"fmt"
-	"math"
 	"net"
 	"net/http"
 	"time"
@@ -86,16 +85,9 @@ func (this *HTTPService) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (this *HTTPService) Poll() {
-	requestStartTime := time.Now() // Start timing how long the request takes
-
 	conn := this.doPoll()
 	if conn == nil {
 		this.lastResponseStatus = 0
-		this.responseSize.Set(math.NaN())
-
-		// Request end time is a number even if rejected.
-		requestDuration := float64(time.Now().Sub(requestStartTime) * time.Microsecond)
-		this.requestDuration.Set(requestDuration)
 		return
 	}
 	defer conn.Close()

@@ -190,22 +190,22 @@ func (this *ChallengeResponseService) Poll() {
 				this.serviceResponseTime = time.Now().Sub(startTime)
 			} else {
 				this.serviceResponsive = FAILED
-				this.serviceResponseTime = time.Duration{}
+				this.serviceResponseTime = 0
 				this.serviceResponseSize = 0
 			}
 		} else {
 			this.serviceResponsive = UNKNOWN
-			this.serviceResponseTime = time.Duration{}
+			this.serviceResponseTime = 0
 			this.serviceResponseSize = math.NaN()
 		}
 	} else {
 		this.serviceChallengeable = UNKNOWN
 		this.serviceChallengeSize = math.NaN()
-		this.serviceChallengeTime = time.Duration{}
+		this.serviceChallengeTime = 0
 
 		this.serviceResponsive = UNKNOWN
 		this.serviceResponseSize = math.NaN()
-		this.serviceResponseTime = time.Duration{}
+		this.serviceResponseTime = 0
 	}
 
 }
