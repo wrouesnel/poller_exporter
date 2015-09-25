@@ -13,3 +13,8 @@ configuration provised via a tool such as Ansible.
 
 Each server then expresses the network connections it has remotely, and provides
 a direct interface to view their status, providing self-describing infrastructure.
+
+# Errata
+Configuration is still not working correctly - fields do not properly override
+partly due to bugs in the Go YAML parser library. Specify explicit configurations
+to workaround.
