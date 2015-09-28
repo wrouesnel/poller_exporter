@@ -101,11 +101,12 @@ func (this *HTTPService) Poll() {
 	} else {
 		// Build a default URL from the hostname.
 		url.Host = this.Host().Hostname
-		if this.HTTPServiceConfig.UseSSL {
-			url.Scheme = "https"
-		} else {
-			url.Scheme = "http"
-		}
+		//if this.HTTPServiceConfig.UseSSL {
+		//	url.Scheme = "https"
+		//} else {
+		//	url.Scheme = "http"
+		//}
+		url.Scheme = "http"
 	}
 
 	httpreq := &http.Request{
@@ -122,6 +123,8 @@ func (this *HTTPService) Poll() {
 	resp, err := client.Do(httpreq)
 	if err != nil {
 		log.Infoln("Error making HTTP request to ", this.Host(), ": ", err)
+		this.lastResponseStatus = 0
+		return
 	}
 
 	// Get the status

@@ -1,0 +1,81 @@
+poll_frequency: 30s
+ping_timeout: 10s
+max_bytes: 50000
+timeout: 10s
+disable_ping: false
+
+hosts:
+- hostname: cp118.ezyreg.com
+  basic_checks:
+  - name: DNS
+    proto: tcp
+    port: 53
+    max_bytes: 50000
+    timeout: 20s
+  challenge_response_checks:
+  - name: POP3
+    proto: tcp
+    port: 110
+    response_re: Dovecot ready.
+    timeout: 20s
+    max_bytes: 50000
+
+  - name: IMAP
+    proto: tcp
+    port: 143
+    response_re: Dovecot ready.
+    timeout: 20s
+    max_bytes: 50000
+    
+  - name: SMTP
+    proto: tcp
+    port: 25
+    response_re: "220"
+    timeout: 20s
+    max_bytes: 50000
+    
+  - name: MySQL
+    proto: tcp
+    port: 3306
+    response_re: mysql
+    timeout: 20s
+    max_bytes: 50000
+    
+  - name: FTP
+    proto: tcp
+    port: 21
+    response_re: 220 ProFTPD
+    timeout: 20s
+    max_bytes: 50000
+    
+  http_checks:
+  - name: CPANEL-2083
+    proto: tcp
+    ssl: true
+    port: 2083
+    timeout: 20s
+    success_status: [200]
+    max_bytes: 50000
+    
+  - name: CPANEL-2087
+    proto: tcp
+    ssl: true
+    port: 2083
+    timeout: 20s
+    success_status: [200]
+    max_bytes: 50000
+    
+  - name: HTTP
+    proto: tcp
+    port: 80
+    timeout: 20s
+    success_status: [200]
+    max_bytes: 50000
+    
+  - name: HTTPS
+    proto: tcp
+    ssl: true
+    port: 443
+    timeout: 20s
+    success_status: [200]
+    max_bytes: 50000

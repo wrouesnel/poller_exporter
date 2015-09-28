@@ -196,6 +196,9 @@ func (this *ChallengeResponseService) Poll() {
 			this.serviceResponseTime = 0
 			this.serviceResponseSize = math.NaN()
 		}
+	} else if this.isReader() {
+		this.serviceResponsive = this.TryReadMatch(conn)
+		this.serviceResponseTime = time.Now().Sub(startTime)
 	} else {
 		this.serviceChallengeable = UNKNOWN
 		this.serviceChallengeSize = math.NaN()
