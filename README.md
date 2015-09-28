@@ -14,6 +14,15 @@ configuration provised via a tool such as Ansible.
 Each server then expresses the network connections it has remotely, and provides
 a direct interface to view their status, providing self-describing infrastructure.
 
+# Configuration
+`response` looks for a literal response starting from the start of the line.
+
+`response_re` matches a regex anywhere along the line if not supplied with
+anchor expressions. In general this is more useful.
+
+Both forms work on the byte-stream returned by the service - no utf-8 conversion
+is done for obvious reasons.
+
 # Errata
 Configuration is still not working correctly - fields do not properly override
 partly due to bugs in the Go YAML parser library. Specify explicit configurations
