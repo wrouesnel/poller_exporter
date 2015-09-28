@@ -181,6 +181,7 @@ func (r ChallengeResponseConfigValidationError) Error() string {
 //	}
 //
 //	if err := unmarshal((*plain)(this)); err != nil {
+
 //		return err
 //	}
 //

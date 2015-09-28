@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/log"
 	"github.com/wrouesnel/poller_exporter/config"
+	"net/url"
 )
 
 // An HTTP service is a degenerate ChallengeResponse service which does specific
@@ -94,15 +95,28 @@ func (this *HTTPService) Poll() {
 
 	client := NewDeadlineClient(conn, time.Duration(this.ChallengeResponseService.Timeout))
 
+	var url url.URL
+	if this.Url.URL != nil {
+		url = *this.Url.URL
+	} else {
+		// Build a default URL from the hostname.
+		url.Host = this.Host().Hostname
+		if this.HTTPServiceConfig.UseSSL {
+			url.Scheme = "https"
+		} else {
+			url.Scheme = "http"
+		}
+	}
+
 	httpreq := &http.Request{
 		Method:     this.Verb,
-		URL:        this.Url.URL,
+		URL:        &url,
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
 		ProtoMinor: 1,
 		Header:     make(http.Header),
 		Body:       nil,
-		Host:       this.Url.URL.Host,
+		Host:       url.Host,
 	}
 
 	resp, err := client.Do(httpreq)
