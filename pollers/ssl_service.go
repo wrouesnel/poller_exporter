@@ -62,6 +62,9 @@ func (s *SSLService) doPoll() net.Conn {
 func (s *SSLService) scrapeTLS(conn net.Conn) net.Conn {
 	tlsConfig := &tls.Config{InsecureSkipVerify: true}
 	tlsConn := tls.Client(conn, tlsConfig)
+	if err := tlsConn.Handshake(); err != nil {
+		return nil
+	}
 
 	hostcert := tlsConn.ConnectionState().PeerCertificates[0]
 	intermediates := x509.NewCertPool()
