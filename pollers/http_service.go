@@ -39,8 +39,6 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 	newService := HTTPService{
 		lastResponseStatus : -1,
 
-		successMap : make(map[int]bool, len(opts.SuccessStatuses)),
-
 		responseSuccess: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
 			Subsystem:   "service",
@@ -48,11 +46,6 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 			Help:        "Was the HTTP response code successful",
 			ConstLabels: clabels,
 		}),
-	}
-
-	// Populate the success map
-	for _, v := range newService.SuccessStatuses {
-		newService.successMap[v] = true
 	}
 
 	newService.ChallengeResponseService = *basePoller
@@ -64,9 +57,17 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 // Return true if the last polled status was one of the allowed statuses
 func (this *HTTPService) Status() Status {
 	// TODO: use a map?
-	if _, ok := this.successMap[this.lastResponseStatus]; ok {
+	if _, ok := this.SuccessStatuses[this.lastResponseStatus]; ok {
 		return SUCCESS
 	}
+	if this.lastResponseStatus == -1 {
+		return UNKNOWN
+	}
+	// Anything that's not 0 is also allowed if not defined
+	if len(this.SuccessStatuses) == 0 && this.lastResponseStatus != 0 {
+		return SUCCESS
+	}
+
 	return FAILED
 }
 
@@ -109,6 +110,8 @@ func (this *HTTPService) Poll() {
 		url.Scheme = "http"
 	}
 
+	log.Debugln("HTTP", this.Verb, this.Host().Hostname, this.Port(), "for", url.String())
+
 	httpreq := &http.Request{
 		Method:     this.Verb,
 		URL:        &url,
@@ -126,9 +129,11 @@ func (this *HTTPService) Poll() {
 		this.lastResponseStatus = 0
 		return
 	}
+	defer resp.Body.Close()
 
 	// Get the status
 	this.lastResponseStatus = resp.StatusCode
+	log.Debugln("HTTP response", this.Host().Hostname, this.Port(), resp.StatusCode, resp.Status)
 
 	// Call the underlying ChallengeResponse to match on output if an output
 	// matcher is specified

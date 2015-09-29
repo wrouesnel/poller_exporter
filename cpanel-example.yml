@@ -54,7 +54,6 @@ hosts:
     ssl: true
     port: 2083
     timeout: 20s
-    success_status: [200]
     max_bytes: 50000
     
   - name: CPANEL-2087
@@ -62,14 +61,12 @@ hosts:
     ssl: true
     port: 2083
     timeout: 20s
-    success_status: [200]
     max_bytes: 50000
     
   - name: HTTP
     proto: tcp
     port: 80
     timeout: 20s
-    success_status: [200]
     max_bytes: 50000
     
   - name: HTTPS
@@ -77,5 +74,4 @@ hosts:
     ssl: true
     port: 443
     timeout: 20s
-    success_status: [200]
     max_bytes: 50000

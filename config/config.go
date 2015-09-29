@@ -15,6 +15,9 @@ import (
 	"net/url"
 	//"github.com/prometheus/log"
 	//"github.com/davecgh/go-spew/spew"
+	//"github.com/prometheus/log"
+	"strconv"
+	"sort"
 )
 
 var (
@@ -195,33 +198,132 @@ func (r ChallengeResponseConfigValidationError) Error() string {
 //	return nil
 //}
 
+// A range of HTTP status codes which can be specifid in YAML using human-friendly
+// ranging notation
+type HTTPStatusRange map[int]bool
+func (this *HTTPStatusRange) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	*this = make(HTTPStatusRange)
+	var ranges string
+	var statusCodes []int
+
+	if err := unmarshal(&ranges); err != nil {
+		return err
+	}
+
+	fields := strings.Fields(ranges)
+
+	for _, v := range fields {
+		code, err := strconv.ParseInt(v, 10, 32)
+		if err == nil {
+			statusCodes = append(statusCodes, int(code))
+			continue
+		}
+		// Didn't work, but might be a range
+		if strings.Count(v, "-") == 0 || strings.Count(v, "-") > 1 {
+			return err // Not a valid range
+		}
+		// Is a range.
+		statusRange := strings.Split(v, "-")
+		startCode, err := strconv.ParseInt(statusRange[0], 10, 32)
+		if err != nil {
+			return err
+		}
+
+		endCode, err := strconv.ParseInt(statusRange[1], 10, 32)
+		if err != nil {
+			return err
+		}
+
+		// Loop over the codes in sequential order
+		if startCode < endCode {
+			for i := startCode; i < endCode+1; i++ {
+				statusCodes = append(statusCodes, int(i))
+			}
+		} else {
+			for i := startCode; i > endCode-1; i-- {
+				statusCodes = append(statusCodes, int(i))
+			}
+		}
+	}
+
+	for _, v := range statusCodes {
+		(*this)[v] = true
+	}
+	return nil
+}
+
+// MarshalYAML implements the yaml.Marshaler interface.
+func (this HTTPStatusRange) MarshalYAML() (interface{}, error) {
+	var statusCodes []int
+	var output []string
+	for k, _ := range this {
+		statusCodes = append(statusCodes, k)
+	}
+
+	sort.Ints(statusCodes)
+
+	// This could probably be neater, but its what you get when you iterate.
+	idx := 0
+	for {
+		start := statusCodes[idx]
+		prev := start
+		for {
+			idx++
+			if idx >= len(statusCodes) {
+				break
+			}
+			if statusCodes[idx] - prev != 1 {
+				// Check if it's a single number
+				if statusCodes[idx-1] == start {
+					output = append(output, fmt.Sprintf("%d", start))
+				} else {
+					output = append(output, fmt.Sprintf("%d-%d", start, statusCodes[idx-1]))
+				}
+				break
+			}
+			prev = statusCodes[idx]
+		}
+		if idx >= len(statusCodes) {
+			break
+		}
+	}
+
+	return strings.Join(output, " "), nil
+}
+
 // An HTTP speaking service. Does not yet support being a proxy.
 // If UseSSL is not set but you request HTTPS, it'll fail.
 type HTTPServiceConfig struct {
 	ChallengeResponseConfig 	`yaml:",inline,omitempty"`
 	Verb	string		`yaml:"verb,omitempty"` // HTTP verb to use
 	Url		URL			`yaml:"url,omitempty"`	// HTTP request URL to send
-	SuccessStatuses []int `yaml:"success_status,omitempty"` // List of status codes indicating success
+	SuccessStatuses HTTPStatusRange `yaml:"success_status,omitempty"` // List of status codes indicating success
 	BasicAuth bool		`yaml:"auth,omitempty"` // Use HTTP basic auth
 	Username string		`yaml:"username,omitempty"` // Username for HTTP basic auth
 	Password string 	`yaml:"password,omitempty"` // Password for HTTP basic auth
 }
 
 //func (this *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-//	*this = DefaultHTTPServiceConfig
+//	//*this = DefaultHTTPServiceConfig
 //
-//	type plain HTTPServiceConfig
-//	if err := unmarshal((*plain)(this)); err != nil {
-//		log.Debugln(err)
-//		return err
-//		switch err.(type) {
-//		default:
-//			return err
-//		case ChallengeResponseConfigValidationError:
-//			// Allowed since HTTP may have no matchers
-//			break
-//		}
+//	// This is so we can have pretty notation for HTTP success statuses
+//	type HTTPServiceConfigProxy struct {
+//		ChallengeResponseConfig 	`yaml:",inline,omitempty"`
+//		Verb	string		`yaml:"verb,omitempty"` // HTTP verb to use
+//		Url		URL			`yaml:"url,omitempty"`	// HTTP request URL to send
+//		SuccessStatuses string `yaml:"success_status,omitempty"` // List of status codes indicating success
+//		BasicAuth bool		`yaml:"auth,omitempty"` // Use HTTP basic auth
+//		Username string		`yaml:"username,omitempty"` // Username for HTTP basic auth
+//		Password string 	`yaml:"password,omitempty"` // Password for HTTP basic auth
 //	}
+//
+//	var proxy HTTPServiceConfigProxy
+//
+//	if err := unmarshal(&proxy); err != nil {
+//		return err
+//	}
+//
+//	// Convert success statuses
 //
 //	return nil
 //}
