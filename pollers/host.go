@@ -6,7 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/log"
-	"github.com/tatsushid/go-fastping"
+	"github.com/wrouesnel/ping"
 	config "github.com/wrouesnel/poller_exporter/config"
 	"math"
 	"math/rand"
@@ -16,18 +16,18 @@ import (
 // If the host fails to be resolvable or routable, then all pollers beneath it
 // stop returning data (specifically they return NaN).
 type Host struct {
-	IP       string // Resolved IP address (from last poll)
+	IP string // Resolved IP address (from last poll)
 
 	Pollers []Poller // List of services to poll
 
-	NumPolls	  prometheus.Counter // Number of times polls have been attempted
-	LastPollTime  prometheus.Gauge // Time of last poll
-	Resolvable    prometheus.Gauge // Is the hostname resolvable (IP is always true)
-	PathReachable prometheus.Gauge // Is the host IP routable?
-	Latency		  prometheus.Gauge // Latency to contact host - NaN if unavailable
+	NumPolls      prometheus.Counter // Number of times polls have been attempted
+	LastPollTime  prometheus.Gauge   // Time of last poll
+	Resolvable    prometheus.Gauge   // Is the hostname resolvable (IP is always true)
+	PathReachable prometheus.Gauge   // Is the host IP routable?
+	Latency       prometheus.Gauge   // Latency to contact host - NaN if unavailable
 
-	lastPoll	time.Time	// Time we last polled
-	ping		time.Duration // Last known ping time
+	lastPoll time.Time     // Time we last polled
+	ping     time.Duration // Last known ping time
 
 	config.HostConfig
 }
@@ -35,19 +35,19 @@ type Host struct {
 func NewHost(opts config.HostConfig) *Host {
 	// Setup the host
 	newHost := Host{
-		NumPolls : prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace:	Namespace,
-			Subsystem:	"host",
-			Name: 		"polls_total",
-			Help:		"Number of times this host has been polled by the exporter",
-			ConstLabels: prometheus.Labels{"hostname" : opts.Hostname },
+		NumPolls: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace:   Namespace,
+			Subsystem:   "host",
+			Name:        "polls_total",
+			Help:        "Number of times this host has been polled by the exporter",
+			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
 		}),
-		LastPollTime : prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace:	Namespace,
-			Subsystem:	"host",
-			Name: 		"last_poll_time",
-			Help:		"Last time this host was polled by the exporter",
-			ConstLabels: prometheus.Labels{"hostname" : opts.Hostname },
+		LastPollTime: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace:   Namespace,
+			Subsystem:   "host",
+			Name:        "last_poll_time",
+			Help:        "Last time this host was polled by the exporter",
+			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
 		}),
 		Resolvable: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
@@ -76,7 +76,7 @@ func NewHost(opts config.HostConfig) *Host {
 	newHost.HostConfig = opts
 
 	// Default everything to NaN since we don't know them
-	newHost.NumPolls.Set(0)	// Except this one.
+	newHost.NumPolls.Set(0) // Except this one.
 	newHost.Resolvable.Set(math.NaN())
 	newHost.PathReachable.Set(math.NaN())
 	newHost.Latency.Set(math.NaN())
@@ -157,11 +157,11 @@ func (s *Host) StartPolling(delayStart bool) {
 
 		pollTimer := time.NewTimer(time.Duration(s.PollFrequency))
 		for {
-			s.Poll()	// Do the Poll
+			s.Poll() // Do the Poll
 
 			// Wait for the timer for next poll.
 			log.Debugln("Waiting for poll timer", s.Hostname)
-			<- pollTimer.C
+			<-pollTimer.C
 			pollTimer.Reset(s.NextPoll())
 		}
 	}()
@@ -169,7 +169,7 @@ func (s *Host) StartPolling(delayStart bool) {
 
 func (s *Host) Poll() {
 	var err error
-	s.lastPoll = time.Now()	// Mark poll start
+	s.lastPoll = time.Now() // Mark poll start
 	s.LastPollTime.Set(float64(s.lastPoll.Unix()))
 	s.NumPolls.Inc()
 
@@ -194,28 +194,16 @@ func (s *Host) Poll() {
 	}
 }
 
-// Do an ICMP ping. Borrowed from bbrazil's blackbox exporter.
+// Do an ICMP ping.
 func (s *Host) doPing() {
-	pinger := fastping.NewPinger()
-	pinger.AddIP(s.IP)
-	pinger.MaxRTT = time.Duration(s.PingTimeout)
-	pinger.Size = 1500
-
-	pinger.OnRecv = func(ip *net.IPAddr, latency time.Duration) {
-		log.Infoln(s.Hostname, "latency", latency.String())
-		s.ping = latency
-		s.Latency.Set(float64(latency) / float64(time.Millisecond))
-		s.PathReachable.Set(1)
-	}
 	log.Debugln("Pinging", s.Hostname)
-	err := pinger.Run()
-	if err != nil {
-		log.Infoln(s.Hostname, "ping timeout!")
-		s.ping = math.MaxInt64
-		s.Latency.Set(float64(math.NaN()))
-		s.PathReachable.Set(0)
+	ok, latency := ping.Ping(net.ParseIP(s.IP), time.Duration(s.PingTimeout))
+
+	if ok {
+		s.PathReachable.Set(SUCCESS)
+		s.Latency.Set(float64(latency) / float64(time.Millisecond))
+	} else {
+		s.PathReachable.Set(FAILED)
+		s.Latency.Set(math.NaN())
 	}
-
-	log.Debugln(s.Hostname, "is reachable!")
 }
-
