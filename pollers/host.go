@@ -24,7 +24,7 @@ type Host struct {
 	LastPollTime  prometheus.Gauge   // Time of last poll
 	Resolvable    prometheus.Gauge   // Is the hostname resolvable (IP is always true)
 	PathReachable prometheus.Gauge   // Is the host IP routable?
-	Latency       prometheus.Gauge   // Latency to contact host - NaN if unavailable
+	PingLatency       prometheus.Gauge   // Latency to contact host - NaN if unavailable
 
 	lastPoll time.Time     // Time we last polled
 	ping_status Status	// Last known ping result
@@ -64,7 +64,7 @@ func NewHost(opts config.HostConfig) *Host {
 			Help:        "Is the resolved IP address routable on this hosts network",
 			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
 		}),
-		Latency: prometheus.NewGauge(prometheus.GaugeOpts{
+		PingLatency: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
 			Subsystem:   "host",
 			Name:        "latency_milliseconds",
@@ -72,7 +72,8 @@ func NewHost(opts config.HostConfig) *Host {
 			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
 		}),
 
-		ping: time.Duration(math.MaxInt64),
+		ping_status: UNKNOWN,
+		ping_latency: time.Duration(math.MaxInt64),
 	}
 	newHost.HostConfig = opts
 
@@ -80,7 +81,7 @@ func NewHost(opts config.HostConfig) *Host {
 	newHost.NumPolls.Set(0) // Except this one.
 	newHost.Resolvable.Set(math.NaN())
 	newHost.PathReachable.Set(math.NaN())
-	newHost.Latency.Set(math.NaN())
+	newHost.PingLatency.Set(math.NaN())
 	newHost.LastPollTime.Set(math.NaN())
 
 	// Setup it's services
@@ -123,9 +124,9 @@ func (s *Host) NextPoll() time.Duration {
 func (s *Host) Describe(ch chan<- *prometheus.Desc) {
 	s.NumPolls.Describe(ch)
 	s.LastPollTime.Describe(ch)
-	s.Latency.Describe(ch)
 	s.Resolvable.Describe(ch)
 	s.PathReachable.Describe(ch)
+	s.PingLatency.Describe(ch)
 	s.NumPolls.Describe(ch)
 
 	for _, poller := range s.Pollers {
@@ -136,9 +137,22 @@ func (s *Host) Describe(ch chan<- *prometheus.Desc) {
 func (s *Host) Collect(ch chan<- prometheus.Metric) {
 	s.NumPolls.Collect(ch)
 	s.LastPollTime.Collect(ch)
-	s.Latency.Collect(ch)
 	s.Resolvable.Collect(ch)
+
+	// Reachable?
+	s.PathReachable.Set(float64(s.ping_status))
 	s.PathReachable.Collect(ch)
+
+	//Latency
+	if s.ping_status == UNKNOWN {
+		s.PingLatency.Set(math.NaN())
+	} else if s.ping_status == FAILED {
+		s.PingLatency.Set(math.Inf(1))
+	} else {
+		s.PingLatency.Set(float64(s.ping_latency))
+	}
+	s.PingLatency.Collect(ch)
+
 	s.NumPolls.Collect(ch)
 
 	for _, poller := range s.Pollers {
@@ -208,12 +222,8 @@ func (s *Host) doPing() {
 	if ok {
 		log.Infoln("Success", s.Hostname, "ICMP ECHO", latency)
 		s.ping_status = SUCCESS
-		s.PathReachable.Set(float64(SUCCESS))
-		s.Latency.Set(float64(latency) / float64(time.Millisecond))
 	} else {
 		log.Infoln("FAILED", s.Hostname, "ICMP ECHO")
 		s.ping_status = FAILED
-		s.PathReachable.Set(float64(FAILED))
-		s.Latency.Set(float64(UNKNOWN))
 	}
 }
