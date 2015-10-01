@@ -1,0 +1,5 @@
+#!/bin/bash
+
+go build -o poller_exporter.x86_64
+
+GOARCH=386 go build -o poller_exporter.i386
