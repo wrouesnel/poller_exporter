@@ -233,7 +233,7 @@ func (s *ChallengeResponseService) Challenge(conn io.Writer) Status {
 	return SUCCESS
 }
 
-func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) Status {
+func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64) {
 	// Read the response literal
 	var nTotalBytes uint64
 	var allBytes []byte
