@@ -184,7 +184,7 @@ func (this *ChallengeResponseService) Poll() {
 		this.serviceChallengeTime = time.Now().Sub(startTime)
 		if this.isReader() {
 			if this.serviceChallengeable == SUCCESS {
-				this.serviceResponsive = this.TryReadMatch(conn)
+				this.serviceResponsive, this.serviceResponseSize = this.TryReadMatch(conn)
 				this.serviceResponseTime = time.Now().Sub(startTime)
 			} else {
 				this.serviceResponsive = FAILED
@@ -193,11 +193,15 @@ func (this *ChallengeResponseService) Poll() {
 			}
 		} else {
 			this.serviceResponsive = UNKNOWN
-			this.serviceResponseTime = 0
 			this.serviceResponseSize = math.NaN()
+			this.serviceResponseTime = 0
 		}
 	} else if this.isReader() {
-		this.serviceResponsive = this.TryReadMatch(conn)
+		this.serviceChallengeable = UNKNOWN
+		this.serviceChallengeSize = math.NaN()
+		this.serviceChallengeTime = 0
+
+		this.serviceResponsive, this.serviceResponseSize = this.TryReadMatch(conn)
 		this.serviceResponseTime = time.Now().Sub(startTime)
 	} else {
 		this.serviceChallengeable = UNKNOWN
@@ -267,6 +271,5 @@ func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) Status {
 			break
 		}
 	}
-	s.serviceResponseSize = float64(nTotalBytes)
-	return serviceResponded
+	return serviceResponded, float64(nTotalBytes)
 }
