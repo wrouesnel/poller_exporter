@@ -133,7 +133,7 @@ func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration)
 		}
 		if bytes.Compare(rb[:n], wb) == 0 {
 			success = true
-			latency = sendTime.Sub(time.Now())
+			latency = time.Now().Sub(sendTime)
 			return
 		}
 	}

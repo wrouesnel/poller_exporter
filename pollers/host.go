@@ -6,7 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/log"
-	"github.com/wrouesnel/ping"
+	"github.com/wrouesnel/poller_exporter/pollers/ping"
 	config "github.com/wrouesnel/poller_exporter/config"
 	"math"
 	"math/rand"
@@ -200,10 +200,12 @@ func (s *Host) doPing() {
 	ok, latency := ping.Ping(net.ParseIP(s.IP), time.Duration(s.PingTimeout))
 
 	if ok {
-		s.PathReachable.Set(SUCCESS)
+		log.Infoln("Success", s.Hostname, "ICMP ECHO", latency)
+		s.PathReachable.Set(float64(SUCCESS))
 		s.Latency.Set(float64(latency) / float64(time.Millisecond))
 	} else {
-		s.PathReachable.Set(FAILED)
+		log.Infoln("FAILED", s.Hostname, "ICMP ECHO")
+		s.PathReachable.Set(float64(FAILED))
 		s.Latency.Set(math.NaN())
 	}
 }
