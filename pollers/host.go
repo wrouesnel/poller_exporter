@@ -27,7 +27,8 @@ type Host struct {
 	Latency       prometheus.Gauge   // Latency to contact host - NaN if unavailable
 
 	lastPoll time.Time     // Time we last polled
-	ping     time.Duration // Last known ping time
+	ping_status Status	// Last known ping result
+	ping_latency     time.Duration // Last known ping time
 
 	config.HostConfig
 }
@@ -98,8 +99,12 @@ func NewHost(opts config.HostConfig) *Host {
 	return &newHost
 }
 
-func (s *Host) Ping() time.Duration {
-	return s.ping
+func (s *Host) Status() Status {
+	return s.ping_status
+}
+
+func (s *Host) Latency() time.Duration {
+	return s.ping_latency
 }
 
 func (s *Host) LastPoll() time.Time {
@@ -199,13 +204,16 @@ func (s *Host) doPing() {
 	log.Debugln("Pinging", s.Hostname)
 	ok, latency := ping.Ping(net.ParseIP(s.IP), time.Duration(s.PingTimeout))
 
+	s.ping_latency = latency
 	if ok {
 		log.Infoln("Success", s.Hostname, "ICMP ECHO", latency)
+		s.ping_status = SUCCESS
 		s.PathReachable.Set(float64(SUCCESS))
 		s.Latency.Set(float64(latency) / float64(time.Millisecond))
 	} else {
 		log.Infoln("FAILED", s.Hostname, "ICMP ECHO")
+		s.ping_status = FAILED
 		s.PathReachable.Set(float64(FAILED))
-		s.Latency.Set(math.NaN())
+		s.Latency.Set(float64(UNKNOWN))
 	}
 }

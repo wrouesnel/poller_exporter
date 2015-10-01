@@ -27,8 +27,13 @@ body
                         if $host.PingDisable
                             td Pinger Disabled
                         else
-                            td #{$host.Ping}
-
+                            td
+                                if $host.Status == 1
+                                    #{$host.Ping}
+                                elseif $host.Status == 0
+                                    span.label.label-danger Not Responding
+                                else
+                                    span.label.label-warning Unknown
                         td
                             table.table
                                 thead
