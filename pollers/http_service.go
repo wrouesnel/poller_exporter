@@ -56,7 +56,11 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 
 // Return true if the last polled status was one of the allowed statuses
 func (this *HTTPService) Status() Status {
-	// TODO: use a map?
+	// Check underlying connection succeeeded
+	if this.Poller.Status() == FAILED || this.Poller.Status() == UNKNOWN {
+		return this.Poller.Status()
+	}
+
 	if _, ok := this.SuccessStatuses[this.lastResponseStatus]; ok {
 		return SUCCESS
 	}

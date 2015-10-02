@@ -10,7 +10,7 @@ import (
 )
 
 type BasicService struct {
-	PortOpen Status // Was the port successfully accessed?
+	portOpen Status // Was the port successfully accessed?
 
 	PortOpen	prometheus.Gauge	// Port open metric
 
@@ -27,7 +27,7 @@ func (s *BasicService) Port() uint64 {
 }
 
 func (s *BasicService) Status() Status {
-	return s.PortOpen
+	return s.portOpen
 }
 
 func (s *BasicService) Host() *Host {
@@ -43,7 +43,7 @@ func (s *BasicService) Describe(ch chan <- *prometheus.Desc) {
 }
 
 func (s *BasicService) Collect(ch chan <- prometheus.Metric) {
-	s.PortOpen.Set(float64(s.PortOpen))
+	s.PortOpen.Set(float64(s.portOpen))
 	s.PortOpen.Collect(ch)
 }
 
@@ -59,7 +59,7 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 
 	newBasicService := &BasicService{
 		host: host,
-		PortOpen: UNKNOWN,
+		portOpen: UNKNOWN,
 		PortOpen: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: Namespace,
@@ -124,10 +124,10 @@ func (s *BasicService) doPoll() net.Conn {
 	conn, err := s.dialAndScrape()
 	if err != nil {
 		log.Infoln("Error", s.Host().Hostname, s.Port(), s.Name(), err)
-		s.PortOpen = FAILED
+		s.portOpen = FAILED
 	} else {
 		log.Infoln("Success", s.Host().Hostname, s.Port(), s.Name())
-		s.PortOpen = SUCCESS
+		s.portOpen = SUCCESS
 	}
 
 	return conn
@@ -144,9 +144,9 @@ func (s *BasicService) dialAndScrape() (net.Conn, error) {
 
 	conn, err = dialer.Dial(s.Protocol, fmt.Sprintf("%s:%d", s.Host().Hostname, s.Port()))
 	if err != nil {
-		s.PortOpen = FAILED
+		s.portOpen = FAILED
 	} else {
-		s.PortOpen = SUCCESS
+		s.portOpen = SUCCESS
 	}
 
 	return conn, err
