@@ -116,10 +116,19 @@ func (this *ChallengeResponseService) isReader() bool {
 
 // Status is used by the web-UI for quick inspections
 func (s *ChallengeResponseService) Status() Status {
+	if s.Poller.Status() == FAILED || s.Poller.Status() == UNKNOWN {
+		return s.Poller.Status()
+	}
+
 	if s.isReader() {
 		return s.serviceResponsive
 	}
-	return s.serviceChallengeable
+
+	if s.isWriter() {
+		return s.serviceChallengeable
+	}
+
+	return s.Poller.Status()
 }
 
 func (s *ChallengeResponseService) Describe(ch chan <- *prometheus.Desc) {
@@ -168,9 +177,6 @@ func (s *ChallengeResponseService) Collect(ch chan <- prometheus.Metric) {
 func (this *ChallengeResponseService) Poll() {
 	conn := this.doPoll()
 	if conn == nil {
-		// Couldn't connect - service is non-responsive.
-		this.serviceResponsive = FAILED
-
 		// Zero out all other metrics
 		this.serviceChallengeable = UNKNOWN
 		this.serviceChallengeSize = math.NaN()
