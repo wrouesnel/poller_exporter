@@ -29,7 +29,7 @@ body
                         else
                             td
                                 if $host.Status == 1
-                                    #{$host.Ping}
+                                    #{$host.Latency}
                                 elseif $host.Status == 0
                                     span.label.label-danger Not Responding
                                 else
