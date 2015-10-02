@@ -170,7 +170,15 @@ func (this *ChallengeResponseService) Poll() {
 	if conn == nil {
 		// Couldn't connect - service is non-responsive.
 		this.serviceResponsive = FAILED
-		this.serviceChallengeable = FAILED
+
+		// Zero out all other metrics
+		this.serviceChallengeable = UNKNOWN
+		this.serviceChallengeSize = math.NaN()
+		this.serviceChallengeTime = 0
+
+		this.serviceResponsive = UNKNOWN
+		this.serviceResponseSize = math.NaN()
+		this.serviceResponseTime = 0
 		return
 	}
 	defer conn.Close()

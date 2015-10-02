@@ -215,15 +215,26 @@ func (s *Host) Poll() {
 
 // Do an ICMP ping.
 func (s *Host) doPing() {
-	log.Debugln("Pinging", s.Hostname)
-	ok, latency := ping.Ping(net.ParseIP(s.IP), time.Duration(s.PingTimeout))
+	// Try pinging the host up to PingCount times till it responds.
+	// TODO: possibly we should calculate dropped packets, but there's lots of
+	// reasons it could happen and better ways to do it too.
+	var ping_success bool
+	for i := uint64(0); i < s.PingCount; i++ {
+		log.Debugln("Pinging", s.Hostname)
+		ok, latency := ping.Ping(net.ParseIP(s.IP), time.Duration(s.PingTimeout))
 
-	s.ping_latency = latency
-	if ok {
-		log.Infoln("Success", s.Hostname, "ICMP ECHO", latency)
+		if ok == true {
+			ping_success = ok
+			s.ping_latency = latency
+			break
+		}
+	}
+
+	if ping_success {
+		log.Infoln("Success", s.Hostname, "ICMP ECHO", s.ping_latency)
 		s.ping_status = SUCCESS
 	} else {
-		log.Infoln("FAILED", s.Hostname, "ICMP ECHO")
+		log.Infoln("FAILED", s.Hostname, "ICMP ECHO", s.PingCount, "pings")
 		s.ping_status = FAILED
 	}
 }

@@ -75,6 +75,7 @@ type Config struct {
 	Timeout Duration `yaml:"timeout,omitempty"`	// Default service IO timeout
 	MaxBytes uint64		`yaml:"max_bytes,omitempty"` // Default maximum bytes to read from services
 	PingDisable bool `yaml:"disable_ping,omitempty"`	// Disable ping checks by default
+	PingCount uint64 `yaml:"ping_count,omitempty"`	// Number of pings to send
 
 	Hosts []HostConfig	`yaml:"hosts"`// List of hosts which are to be polled
 
@@ -95,6 +96,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	DefaultHostConfig.PollFrequency = c.PollFrequency
 	DefaultHostConfig.PingTimeout = c.PingTimeout
 	DefaultHostConfig.PingDisable = c.PingDisable
+	DefaultHostConfig.PingCount = c.PingCount
 
 	// Propagate service defaults
 	DefaultBasicServiceConfig.Timeout = c.Timeout
@@ -114,7 +116,8 @@ type HostConfig struct {
 	Hostname string		`yaml:"hostname"`	// Host or IP to contact
 	PollFrequency Duration `yaml:"poll_frequency,omitempty"` // Frequency to poll this specific host
 	PingDisable bool `yaml:"disable_ping,omitempty"`	// Disable ping checks for this host
-	PingTimeout Duration `yaml:"ping_timeout"` // Maximum ping timeout
+	PingTimeout Duration `yaml:"ping_timeout,omitempty"` // Maximum ping timeout
+	PingCount uint64 `yaml:"ping_count,omitempty"`	// Number of pings to send each poll
 
 	BasicChecks []*BasicServiceConfig	`yaml:"basic_checks,omitempty"`
 	ChallengeResponseChecks []*ChallengeResponseConfig	`yaml:"challenge_response_checks,omitempty"`

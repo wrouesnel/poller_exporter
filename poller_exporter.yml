@@ -3,6 +3,7 @@ ping_timeout: 4s
 max_bytes: 50000
 timeout: 10s
 disable_ping: false
+ping_count: 5
 
 hosts:
   - hostname: php-shared-1.private.netregistry.net
