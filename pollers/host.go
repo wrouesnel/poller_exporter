@@ -67,7 +67,7 @@ func NewHost(opts config.HostConfig) *Host {
 		PingLatency: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
 			Subsystem:   "host",
-			Name:        "latency_milliseconds",
+			Name:        "latency_microseconds",
 			Help:        "service latency in milliseconds",
 			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
 		}),
@@ -149,7 +149,7 @@ func (s *Host) Collect(ch chan<- prometheus.Metric) {
 	} else if s.ping_status == FAILED {
 		s.PingLatency.Set(math.Inf(1))
 	} else {
-		s.PingLatency.Set(float64(s.ping_latency))
+		s.PingLatency.Set(float64(s.ping_latency * time.Microsecond))
 	}
 	s.PingLatency.Collect(ch)
 
