@@ -25,6 +25,8 @@ func (s *SSLService) Describe(ch chan<- *prometheus.Desc) {
 	s.SSLNotBefore.Describe(ch)
 	s.SSLValid.Describe(ch)
 
+	s.SSLValidCount.Describe(ch)
+
 	// Do basic service collection
 	s.Poller.Describe(ch)
 }
@@ -33,6 +35,8 @@ func (s *SSLService) Collect(ch chan<- prometheus.Metric) {
 	s.SSLNotAfter.Collect(ch)
 	s.SSLNotBefore.Collect(ch)
 	s.SSLValid.Collect(ch)
+
+	s.SSLValidCount.Collect(ch)
 
 	// Do basic service collection
 	s.Poller.Collect(ch)
@@ -80,8 +84,10 @@ func (s *SSLService) scrapeTLS(conn net.Conn) net.Conn {
 
 	if _, err := hostcert.Verify(opts); err != nil {
 		s.SSLValid.WithLabelValues(hostcert.Subject.CommonName).Set(0)
+		s.SSLValidCount.WithLabelValues(LBL_FAIL).Inc()
 	} else {
 		s.SSLValid.WithLabelValues(hostcert.Subject.CommonName).Set(1)
+		s.SSLValidCount.WithLabelValues(LBL_SUCCESS).Inc()
 	}
 
 	s.SSLNotAfter.WithLabelValues(hostcert.Subject.CommonName).Set(float64(hostcert.NotAfter.Unix()))

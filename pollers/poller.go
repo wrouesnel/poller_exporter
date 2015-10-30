@@ -15,6 +15,9 @@ var UNKNOWN = Status(math.NaN())
 const SUCCESS = Status(float64(1))
 const FAILED = Status(float64(0))
 
+const LBL_SUCCESS = "successful"
+const LBL_FAIL = "failed"
+
 type Poller interface {
 	Poll()	// Causes the service to update its internal state.
 
