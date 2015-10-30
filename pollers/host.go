@@ -174,14 +174,15 @@ func (s *Host) StartPolling(delayStart bool) {
 			<-startTimer.C
 		}
 
-		pollTimer := time.NewTimer(time.Duration(s.PollFrequency))
 		for {
 			s.Poll() // Do the Poll
 
 			// Wait for the timer for next poll.
-			log.Debugln("Waiting for poll timer", s.Hostname)
-			<-pollTimer.C
-			pollTimer.Reset(s.NextPoll())
+			nextPoll := s.NextPoll()
+			if s.NextPoll() > 0 {
+				log.Debugln("Waiting for poll timer", s.Hostname, nextPoll)
+				<- time.After(nextPoll)
+			}
 		}
 	}()
 }

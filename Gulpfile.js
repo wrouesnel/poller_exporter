@@ -23,17 +23,25 @@ gulp.task('copy bootstrap', function() {
     }
 
     gulp.src('./node_modules/bootstrap/dist/css/bootstrap'+infix+'.css')
-        .pipe(gulp.dest('web/static/css'));
+        .pipe(gulp.dest('web/static/css/bootstrap.css'));
 
     gulp.src('./node_modules/bootstrap/dist/css/bootstrap-theme'+infix+'.css')
-        .pipe(gulp.dest('web/static/css'));
+        .pipe(gulp.dest('web/static/css/bootstrap-theme.css'));
 
     gulp.src('./node_modules/bootstrap/dist/js/bootstrap'+infix+'.js')
-        .pipe(gulp.dest('web/static/js'));
+        .pipe(gulp.dest('web/static/js/bootstrap.js'));
 
     gulp.src('./node_modules/bootstrap/dist/fonts/*', {
         src: 'node_modules/bootstrap/dist'
     }).pipe(gulp.dest('web/static/fonts'));
+    
+    if (options.env == 'production') {
+        gulp.src('./node_modules/moment/min/moment-with-locales.min.js')
+            .pipe(gulp.dest('web/static/js/moment.js'));    
+    } else {
+        gulp.src('./node_modules/moment/min/moment-with-locales.js')
+            .pipe(gulp.dest('web/static/js/moment.js'));    
+    }
 });
 
 gulp.task("build assetfs", ['copy bootstrap'], function () {
