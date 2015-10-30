@@ -16,6 +16,7 @@ type SSLService struct {
 	SSLNotAfter  *prometheus.GaugeVec // Epoch time the SSL certificate expires
 	SSLNotBefore *prometheus.GaugeVec // Epoch time the SSL certificate is not valid before
 	SSLValid     *prometheus.GaugeVec // Whether the certificate validates to this host
+	SSLValidCount *prometheus.CounterVec // Cumulative count of SSL validations
 	Poller
 }
 

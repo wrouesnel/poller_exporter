@@ -13,6 +13,7 @@ type BasicService struct {
 	portOpen Status // Was the port successfully accessed?
 
 	PortOpen	prometheus.Gauge	// Port open metric
+	PortOpenCount prometheus.CounterVec // Cumulative number of port open checks
 
 	host *Host	// The host this service is attached to
 	config.BasicServiceConfig
@@ -69,6 +70,16 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 				ConstLabels: clabels,
 			},
 		),
+		PortOpenCount: prometheus.NewCounterVec(
+			prometheus.CounterVec{
+				Namespace: Namespace,
+				Subsystem: "service",
+				Name: "port_open_count",
+				Help: "cumulative count of checks for if the port is open",
+				ConstLabels: clabels,
+			},
+			[]string{"result"},
+		),
 		BasicServiceConfig: opts,
 	}
 
@@ -98,6 +109,16 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 				Help: "SSL certificate can be validated by the scraper process",
 				ConstLabels: clabels,
 			}, []string{"commonName"}),
+			SSLValidCount: prometheus.NewCounterVec(
+				prometheus.CounterOpts{
+					Namespace: Namespace,
+					Subsystem: "service",
+					Name: "ssl_validity_valid_total",
+					Help: "cumulative count of SSL validations",
+					ConstLabels: clabels,
+				},
+				[]string{"result"},
+			),
 			Poller: poller,
 		}
 		poller = Poller(&newSSLservice)	// Turn the SSL service into a Poller

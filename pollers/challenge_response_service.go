@@ -16,13 +16,21 @@ type ChallengeResponseService struct {
 	ServiceRequestSize prometheus.Gauge // Number of bytes sent to the service
 	ServiceChallengeTime prometheus.Gauge // Time it took to send the challenge
 
+	ServiceResponseTimeToFirstByte prometheus.Gauge // Time it took the service to send anything
+
 	ServiceRespondedSuccessfully prometheus.Gauge	// Indicates if the service responded with expected data
 	ServiceResponseSize prometheus.Gauge // Number of bytes read before response match
 	ServiceResponseDuration prometheus.Gauge // Time in microseconds to read the response bytes
 
+	ServiceRequestCount *prometheus.CounterVec	// Cumulative count of service requests
+	ServiceRespondedCount *prometheus.CounterVec // Cumulative count of service responses
+	ServiceResponseTimeToFirstByteCount prometheus.Counter // Cumulative count of service responses
+
 	serviceChallengeable Status	// Service can be successfully challenged
 	serviceChallengeSize float64	// Number of bytes sent to the service
 	serviceChallengeTime time.Duration // Time service took to receive challenge
+
+	serviceResponseTTB time.Duration	// Time to first byte
 
 	serviceResponsive Status		// Service responds when challenged
 	serviceResponseSize float64		// Number of bytes service responded with

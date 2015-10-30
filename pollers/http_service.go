@@ -19,6 +19,7 @@ type HTTPService struct {
 
 	// Metrics
 	responseSuccess prometheus.Gauge	// Returns 1 if the HTTP status code was successful
+	responseCount *prometheus.CounterVec // Cumulative count of success and failed responses
 
 	lastResponseStatus int // last status code
 

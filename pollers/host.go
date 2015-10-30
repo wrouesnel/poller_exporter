@@ -20,11 +20,17 @@ type Host struct {
 
 	Pollers []Poller // List of services to poll
 
+	// Instantaneous metrics (easy to alert against)
 	NumPolls      prometheus.Counter // Number of times polls have been attempted
 	LastPollTime  prometheus.Gauge   // Time of last poll
 	Resolvable    prometheus.Gauge   // Is the hostname resolvable (IP is always true)
 	PathReachable prometheus.Gauge   // Is the host IP routable?
 	PingLatency       prometheus.Gauge   // Latency to contact host - NaN if unavailable
+
+	// Tally metrics (more accurate but harder)
+	ResolvableCount prometheus.CounterVec	// success/failure count
+	ReachableCount prometheus.CounterVec	// success/failure count
+	LatencyCount  prometheus.CounterVec		// cumulative latency from successful polls
 
 	lastPoll time.Time     // Time we last polled
 	ping_status Status	// Last known ping result
@@ -71,6 +77,37 @@ func NewHost(opts config.HostConfig) *Host {
 			Help:        "service latency in milliseconds",
 			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
 		}),
+		// Cumulative counters
+		ResolvableCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace:   Namespace,
+				Subsystem:   "host",
+				Name:        "resolveable_total",
+				Help:        "cumulative successful DNS resolutions",
+				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+			},
+			[]string{"result"},
+		),
+		ReachableCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace:   Namespace,
+				Subsystem:   "host",
+				Name:        "routable_total",
+				Help:        "cumulative successful network route resolutions",
+				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+			},
+			[]string{"result"},
+		),
+		LatencyCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace:   Namespace,
+				Subsystem:   "host",
+				Name:        "latency_seconds_total",
+				Help:        "cumulative service latency in seconds",
+				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+			},
+			[]string{"result"},
+		),
 
 		ping_status: UNKNOWN,
 		ping_latency: time.Duration(math.MaxInt64),
