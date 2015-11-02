@@ -1,7 +1,3 @@
-# A work in progress!
-
-This is in no way ready for anyone to use yet.
-
 # Prometheus poller_exporter
 This is my own spin on a blackbox service poller for Prometheus. It is intended
 to provide a detailed metrics endpoint, and also a usable HTTP interface for
