@@ -1,24 +1,24 @@
 #!/bin/sh
 ### BEGIN INIT INFO
-# Provides:          sslstatus_exporter
+# Provides:          poller_exporter
 # Required-Start:    $network $localfs
 # Required-Stop:     $network $localfs
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Prometheus exporter for SSL certificates
-# Description:       Polls a list of services to check SSL status.
+# Short-Description: Prometheus blackbox monitoring exporter
+# Description:       Polls a list of services to establish network characteristics
 ### END INIT INFO
 
 # Using the lsb functions to perform the operations.
 . /lib/lsb/init-functions
 
 # Process name ( For display )
-NAME=ssl_status_exporter
+NAME=poller_exporter
 # Daemon name, where is the actual executable
-DAEMON=/usr/local/bin/sslstatus_exporter
-ARGS="-config /usr/local/etc/sslstatus_exporter.conf"
+DAEMON=/usr/local/bin/poller_exporter
+ARGS="-collector.config /usr/local/etc/poller_exporter.yml"
 # pid file for the daemon
-PIDFILE=/var/run/sslstatus_exporter.pid
+PIDFILE=/var/run/poller_exporter.pid
 
 # If the daemon is not there, then exit.
 test -x $DAEMON || exit 5

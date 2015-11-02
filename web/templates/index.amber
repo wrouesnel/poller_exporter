@@ -1,9 +1,59 @@
-h1 Remote Poller Exporter
-    p This is an exporter for Prometheus which polls network services.
-    p
-        a[href="/metrics"] Metrics
+head
+    //script[type="text/javascript"][src="static/js/bootstrap.js"]
+    link[type="text/css"][rel="stylesheet"][href="static/css/bootstrap.css"]
+    link[type="text/css"][rel="stylesheet"][href="static/css/bootstrap-theme.css"]
+body
+    div.container-fluid
+        h1 Remote Poller Exporter
+        p This is an exporter for Prometheus which polls network services.
+        p
+            a[href="/metrics"] Metrics
 
-h2 Configuration
-    pre #{Configuration}
-
-
+        h2 Poller Status
+        table.table
+            thead
+                tr
+                    th Host
+                    th Next Poll
+                    th Resolved IP
+                    th Ping
+                    th Pollers
+            tbody
+                each $i, $host in Hosts
+                    tr
+                        td #{$host.Hostname}
+                        td #{$host.NextPoll}
+                        td #{$host.IP}
+                        if $host.PingDisable
+                            td Pinger Disabled
+                        else
+                            td
+                                if $host.Status == 1
+                                    #{$host.Latency}
+                                elseif $host.Status == 0
+                                    span.label.label-danger Not Responding
+                                else
+                                    span.label.label-warning Unknown
+                        td
+                            table.table
+                                thead
+                                    tr
+                                        th Name
+                                        th Proto
+                                        th Port
+                                        th Status
+                                tbody
+                                    each $i, $poller in $host.Pollers
+                                        tr
+                                            td #{$poller.Name}
+                                            td #{$poller.Proto}
+                                            td #{$poller.Port}
+                                            td
+                                                if $poller.Status == 1
+                                                    span.label.label-success OK
+                                                elseif $poller.Status == 0
+                                                    span.label.label-danger Failed
+                                                else
+                                                    span.label.label-warning Unknown
+        h2 Configuration
+        pre #{Cfg.OriginalConfig}

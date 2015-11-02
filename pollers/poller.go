@@ -1,29 +1,31 @@
 package pollers
 
 import (
-	config "github.com/wrouesnel/poller_exporter/config"
+
 	"github.com/prometheus/client_golang/prometheus"
+	"net"
+	"math"
 )
 
-// Implements the basic interface for updating pollers.
+const Namespace = "poller"
+
+type Status float64
+
+var UNKNOWN = Status(math.NaN())
+const SUCCESS = Status(float64(1))
+const FAILED = Status(float64(0))
+
 type Poller interface {
 	Poll()	// Causes the service to update its internal state.
-}
 
-// Hosts are the top of a service hierarchy and contain a number of pollers.
-// If the host fails to be resolvable or routable, then all pollers beneath it
-// stop returning data (specifically they return NaN).
-type Host struct {
-	Hostname string		// Host or IP to contact
+	Name() string // Returns the name of the poller
+	Proto() string // Returns the protocol of the poller
+	Port() uint64 // Returns the port of the poller
+	Status() Status // Returns the overall status of the service
+	Host() *Host // Returns the attached host of the service
 
-	Resolvable prometheus.Gauge	// Is the hostname resolvable (IP is always true)
-	PathReachable	prometheus.Gauge	// Is the host IP routable?
+	Describe(ch chan <- *prometheus.Desc)
+	Collect(ch chan <- prometheus.Metric)
 
-	Pollers []Poller	// List of services to poll
-}
-
-func NewHost(opts config.HostConfig) *Host {
-	return &Host{
-
-	}
+	doPoll() net.Conn	// Polls the base methods and returns the established connection object
 }
