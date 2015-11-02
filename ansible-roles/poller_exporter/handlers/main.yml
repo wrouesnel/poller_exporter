@@ -1,0 +1,2 @@
+  - name: restart poller_exporter
+    service: name=poller_exporter enabled=yes state=restarted

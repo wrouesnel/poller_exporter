@@ -1,0 +1,32 @@
+---
+# Install and run the Prometheus node_exporter
+  - name: Check init system
+    checkinit:
+    
+  # Init script needs to have the os_family appended - i.e. node_exporter.init.debian
+  - name: Copy init script
+    copy: src=poller_exporter.init.{{ ansible_os_family | lower }} dest=/etc/init.d/poller_exporter mode=0755
+    when: initsystem == "sysv"
+  
+  - name: Copy service file
+    copy: src=poller_exporter.service dest=/etc/systemd/system/poller_exporter.service
+    when: initsystem == "systemd"
+    
+  - name: Copy node_exporter
+    copy: src=poller_exporter.{{ ansible_userspace_architecture }} dest=/usr/local/bin/poller_exporter mode=0755
+    notify: restart poller_exporter
+    
+  - name: ensure /usr/local/etc exists
+    file: path=/usr/local/etc mode=0755 owner=root group=root state=directory
+    
+  - name: Templating configuration file
+    template: src=poller_exporter.yml.j2 dest=/usr/local/etc/poller_exporter.yml owner=root group=root mode=0644
+    register: tmpl
+    when: "{{ linked_hosts is defined }}"
+    
+  - name: ensure poller_exporter running
+    service: name=poller_exporter enabled=yes state=started
+    
+  - name: restart if config changed
+    service: name=poller_exporter enabled=yes state=restarted
+    when: tmpl.changed

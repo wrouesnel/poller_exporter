@@ -1,0 +1,72 @@
+#!/bin/sh
+#
+# poller_exporter     Start/Stop prometheus poller_exporter
+#
+# chkconfig: 2345 20 99
+# description: Prometheus poller_exporter.
+### BEGIN INIT INFO
+# Provides:          postgres_exporter
+# Required-Start:    $network $localfs
+# Required-Stop:     $network $localfs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Prometheus poller_exporter
+# Description:       This is the wrouesnel blackbox exporter variant.
+### END INIT INFO
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Source networking configuration.
+. /etc/sysconfig/network
+
+# Process name ( For display )
+NAME=poller_exporter
+# Daemon name, where is the actual executable
+DAEMON=/usr/local/bin/poller_exporter
+ARGS="-collector.config /usr/local/etc/poller_exporter.yml"
+USER=root
+
+# If the daemon is not there, then exit.
+test -x $DAEMON || exit 5
+
+# Check that networking is up.
+[ "$NETWORKING" = "no" ] && exit 0
+
+case $1 in
+ start)
+  echo -n "Starting:" $NAME
+  $0 status 2&>1 > /dev/null && failure && echo "Already running." && exit 1
+
+  su $USER -c "$DAEMON $ARGS" >/dev/null 2&>1 &
+  RETVAL=$?
+  [ $RETVAL -eq 0 ] && success || failure
+  echo
+  exit $RETVAL
+  ;;
+ stop)
+  echo -n "Stopping:" $NAME
+  killproc "$DAEMON"
+  RETVAL=$?
+  [ $RETVAL -eq 0 ] && success || failure
+  echo
+  exit $RETVAL
+  ;;
+ restart)
+  $0 stop && sleep 1 && $0 start
+  ;;
+ condrestart|try-restart)
+  $0 status || exit 0
+  $0 restart
+  exit $?
+  ;;
+ status)
+   status $NAME
+   exit $?
+  ;;
+ *)
+  # For invalid arguments, print the usage message.
+  echo "Usage: $0 {start|stop|restart|status|condrestart|try-restart}"
+  exit 2
+  ;;
+esac

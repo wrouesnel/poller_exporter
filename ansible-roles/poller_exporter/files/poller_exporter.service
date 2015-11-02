@@ -1,0 +1,9 @@
+[Unit]
+Description=wrouesnel Prometheus Blackbox Poller exporter
+
+[Service]
+ExecStart=/usr/local/bin/poller_exporter \
+    -collector.config /usr/local/etc/poller_exporter.yml
+    
+[Install]
+WantedBy=multi-user.target

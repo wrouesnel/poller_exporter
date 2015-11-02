@@ -1,0 +1,109 @@
+# Note: this setting is currently broken - it defaults to this and won't change.
+poll_frequency: 30s
+
+hosts:
+{% for hostgroup in linked_hosts: %}
+{% if hostgroup.host is defined %}
+- hostname: {{hostgroup.host}}
+  ping_timeout: 5s
+  ping_count: 5
+{% if hostgroup.poll_frequency is defined %}
+  poll_frequency: {{hostgroup.poll_frequency}}
+{% endif %}
+{% if hostgroup.disable_ping is defined %}
+  disable_ping: {{hostgroup.disable_ping}}
+{% endif %}
+{% if hostgroup.basic_checks is defined %}
+  basic_checks:
+{% for e in hostgroup.basic_checks %}
+  - {{e | to_nice_yaml | indent }}
+{% endfor %}
+{% endif %}
+
+{% if hostgroup.challenge_response_checks is defined %}
+  challenge_response_checks:
+{% for e in hostgroup.challenge_response_checks %}
+  - {{e | to_nice_yaml | indent }}
+{% endfor %}
+{% endif %}
+
+{% if hostgroup.http_checks is defined %}
+  http_checks:
+{% for e in hostgroup.http_checks %}
+  - {{e | to_nice_yaml | indent }}
+{% endfor %}
+{% endif %}
+
+{% endif %}
+
+{% if hostgroup.group is defined %}
+{% for host in groups[hostgroup.group] %}
+- hostname: {{host}}
+  ping_timeout: 5s
+  ping_count: 5
+{% if hostgroup.poll_frequency is defined %}
+  poll_frequency: {{hostgroup.poll_frequency}}
+{% endif %}
+{% if hostgroup.disable_ping is defined %}
+  disable_ping: {{hostgroup.disable_ping}}
+{% endif %}
+{% if hostgroup.basic_checks is defined %}
+  basic_checks:
+{% for e in hostgroup.basic_checks %}
+  - {{e | to_nice_yaml | indent }}
+{% endfor %}
+{% endif %}
+
+{% if hostgroup.challenge_response_checks is defined %}
+  challenge_response_checks:
+{% for e in hostgroup.challenge_response_checks %}
+  - {{e | to_nice_yaml | indent }}
+{% endfor %}
+{% endif %}
+
+{% if hostgroup.http_checks is defined %}
+  http_checks:
+{% for e in hostgroup.http_checks %}
+  - {{e | to_nice_yaml | indent }}
+{% endfor %}
+{% endif %}
+
+{% endfor %}
+{% endif %}
+
+{% if hostgroup.literal is defined %}
+{% for host in hostgroup.literal %}
+- hostname: {{host}}
+  ping_timeout: 5s
+  ping_count: 5
+{% if hostgroup.poll_frequency is defined %}
+  poll_frequency: {{hostgroup.poll_frequency}}
+{% endif %}
+{% if hostgroup.disable_ping is defined %}
+  disable_ping: {{hostgroup.disable_ping}}
+{% endif %}
+{% if hostgroup.basic_checks is defined %}
+  basic_checks:
+{% for e in hostgroup.basic_checks %}
+  - {{e | to_nice_yaml | indent }}
+{% endfor %}
+{% endif %}
+
+{% if hostgroup.challenge_response_checks is defined %}
+  challenge_response_checks:
+{% for e in hostgroup.challenge_response_checks %}
+  - {{e | to_nice_yaml | indent }}
+{% endfor %}
+{% endif %}
+
+{% if hostgroup.http_checks is defined %}
+  http_checks:
+{% for e in hostgroup.http_checks %}
+  - {{e | to_nice_yaml | indent }}
+{% endfor %}
+{% endif %}
+
+{% endfor %}
+{% endif %}
+
+{% endfor %}
