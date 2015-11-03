@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/wrouesnel/poller_exporter.svg)](https://travis-ci.org/wrouesnel/poller_exporter)
 # Prometheus poller_exporter
 This is my own spin on a blackbox service poller for Prometheus. It is intended
 to provide a detailed metrics endpoint, and also a usable HTTP interface for
