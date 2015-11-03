@@ -1,3 +1,6 @@
 language: go
 go:
 - 1.5.1
+script: 
+- go build -v
+- sudo go test -v ./...
