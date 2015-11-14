@@ -74,6 +74,9 @@ type Config struct {
 	BasicAuthUsername string `yaml:"username,omitempty"`	// If set, enables basic auth
 	BasicAuthPassword string `yaml:"password,omitempty"` // If set, enables basic auth (must have a username)
 
+	TLSCertificatePath string `yaml:"tls_cert,omitempty"` // Path to TLS certificate. Enables TLS if specified.
+	TLSKeyPath string `yaml:"tls_key,omitempty"` // Path to TLS key file. Enables TLS if specified.
+
 	PollFrequency Duration `yaml:"poll_frequency,omitempty"` // Default polling frequency for hosts
 	PingTimeout	Duration `yaml:"ping_timeout,omitempty"` // Default ping time out for hosts
 	Timeout Duration `yaml:"timeout,omitempty"`	// Default service IO timeout

@@ -21,6 +21,7 @@ import (
 	"github.com/wrouesnel/poller_exporter/pollers"
 	"time"
 	"github.com/goji/httpauth"
+	"crypto/tls"
 )
 
 var (
@@ -138,7 +139,7 @@ func main() {
 
 	var handler http.Handler
 
-	// If basic auth is requested, enable it.
+	// If basic auth is requested, enable it for the interface.
 	if cfg.BasicAuthUsername != "" && cfg.BasicAuthPassword != "" {
 		basicauth := httpauth.SimpleBasicAuth(cfg.BasicAuthUsername,
 			cfg.BasicAuthPassword)
@@ -147,8 +148,16 @@ func main() {
 		handler = router
 	}
 
-	log.Infof("Listening on %s", *listenAddress)
-    err = http.ListenAndServe(*listenAddress, handler)
+	// If TLS certificates are specificed, use TLS
+	if cfg.TLSCertificatePath != "" && cfg.TLSKeyPath != "" {
+		log.Infof("Listening on (TLS-enabled) %s", *listenAddress)
+		err = http.ListenAndServeTLS(*listenAddress,
+			cfg.TLSCertificatePath, cfg.TLSKeyPath, handler)
+	} else {
+		log.Infof("Listening on %s", *listenAddress)
+		err = http.ListenAndServe(*listenAddress, handler)
+	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
