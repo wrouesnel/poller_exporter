@@ -28,8 +28,8 @@ type Host struct {
 	PingLatency       prometheus.Gauge   // Latency to contact host - NaN if unavailable
 
 	// Tally metrics (more accurate but harder)
-	ResolvableCount prometheus.CounterVec	// success/failure count
-	ReachableCount prometheus.CounterVec	// success/failure count
+	ResolvableCount *prometheus.CounterVec	// success/failure count
+	ReachableCount *prometheus.CounterVec	// success/failure count
 	LatencyCount  prometheus.Counter		// cumulative latency from successful polls
 
 	lastPoll time.Time     // Time we last polled

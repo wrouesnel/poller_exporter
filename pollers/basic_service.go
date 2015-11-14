@@ -13,7 +13,7 @@ type BasicService struct {
 	portOpen Status // Was the port successfully accessed?
 
 	PortOpen	prometheus.Gauge	// Port open metric
-	PortOpenCount prometheus.CounterVec // Cumulative number of port open checks
+	PortOpenCount *prometheus.CounterVec // Cumulative number of port open checks
 
 	host *Host	// The host this service is attached to
 	config.BasicServiceConfig
@@ -71,7 +71,7 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 			},
 		),
 		PortOpenCount: prometheus.NewCounterVec(
-			prometheus.CounterVec{
+			prometheus.CounterOpts{
 				Namespace: Namespace,
 				Subsystem: "service",
 				Name: "port_open_count",

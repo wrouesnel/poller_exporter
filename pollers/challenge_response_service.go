@@ -30,7 +30,7 @@ type ChallengeResponseService struct {
 	serviceChallengeSize float64	// Number of bytes sent to the service
 	serviceChallengeTime time.Duration // Time service took to receive challenge
 
-	serviceResponseTTB time.Duration	// Time to first byte
+	serviceResponseTTB float64	// Time to first byte
 
 	serviceResponsive Status		// Service responds when challenged
 	serviceResponseSize float64		// Number of bytes service responded with
@@ -88,7 +88,7 @@ func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig
 				Name: "request_time_to_first_byte_microseconds",
 				Help: "Time it took for the first response byte to arrive",
 				ConstLabels: clabels,
-			}
+			},
 		),
 		ServiceRespondedSuccessfully: prometheus.NewGauge(
 			prometheus.GaugeOpts{
