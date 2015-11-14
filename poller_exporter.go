@@ -20,6 +20,7 @@ import (
 	"github.com/kardianos/osext"
 	"github.com/wrouesnel/poller_exporter/pollers"
 	"time"
+	"github.com/goji/httpauth"
 )
 
 var (
@@ -135,8 +136,19 @@ func main() {
 		}
 	}
 
+	var handler http.Handler
+
+	// If basic auth is requested, enable it.
+	if cfg.BasicAuthUsername != "" && cfg.BasicAuthPassword != "" {
+		basicauth := httpauth.SimpleBasicAuth(cfg.BasicAuthUsername,
+			cfg.BasicAuthPassword)
+		handler = basicauth(router)
+	} else {
+		handler = router
+	}
+
 	log.Infof("Listening on %s", *listenAddress)
-    err = http.ListenAndServe(*listenAddress, router)
+    err = http.ListenAndServe(*listenAddress, handler)
 	if err != nil {
 		log.Fatal(err)
 	}

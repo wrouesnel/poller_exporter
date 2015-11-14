@@ -18,6 +18,7 @@ import (
 	//"github.com/prometheus/log"
 	"strconv"
 	"sort"
+	"net"
 )
 
 var (
@@ -70,6 +71,9 @@ func Save(cfg *Config) ([]byte, error) {
 }
 
 type Config struct {
+	BasicAuthUsername string `yaml:"username,omitempty"`	// If set, enables basic auth
+	BasicAuthPassword string `yaml:"password,omitempty"` // If set, enables basic auth (must have a username)
+
 	PollFrequency Duration `yaml:"poll_frequency,omitempty"` // Default polling frequency for hosts
 	PingTimeout	Duration `yaml:"ping_timeout,omitempty"` // Default ping time out for hosts
 	Timeout Duration `yaml:"timeout,omitempty"`	// Default service IO timeout
@@ -108,6 +112,30 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	return checkOverflow(c.XXX, "")
+}
+
+// Config wrapper type for an IP Network
+type IPNetwork struct {
+	net.IPNet
+}
+
+func (this *IPNetwork) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+
+	_, ipnet, err := net.ParseCIDR(s)
+	if err != nil {
+		return err
+	}
+
+	this.IPNet = *ipnet
+	return nil
+}
+
+func (this IPNetwork) MarshalYAML() (interface{}, error) {
+	return this.String(), nil
 }
 
 // Defines a host which we want to find service information about.
