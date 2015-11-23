@@ -4,4 +4,5 @@ go:
 - 1.5.1
 script: 
 - go build -v
-- sudo $(which go) test -v ./...
+- go test -c -o test
+- sudo ./test -v
