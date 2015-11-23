@@ -21,7 +21,6 @@ import (
 	"github.com/wrouesnel/poller_exporter/pollers"
 	"time"
 	"github.com/goji/httpauth"
-	"crypto/tls"
 )
 
 var (
