@@ -30,6 +30,7 @@ type Host struct {
 	// Tally metrics (more accurate but harder)
 	ResolvableCount *prometheus.CounterVec	// success/failure count
 	ReachableCount *prometheus.CounterVec	// success/failure count
+	PingResultCount *prometheus.CounterVec		// cumulative count of pings
 	LatencyCount  prometheus.Counter		// cumulative latency from successful polls
 
 	lastPoll time.Time     // Time we last polled
@@ -94,6 +95,16 @@ func NewHost(opts config.HostConfig) *Host {
 				Subsystem:   "host",
 				Name:        "routable_total",
 				Help:        "cumulative successful network route resolutions",
+				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+			},
+			[]string{"result"},
+		),
+		PingResultCount : prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace:   Namespace,
+				Subsystem:   "host",
+				Name:        "ping_count_total",
+				Help:        "cumulative number of pings sent to the host",
 				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
 			},
 			[]string{"result"},
@@ -167,6 +178,7 @@ func (s *Host) Describe(ch chan<- *prometheus.Desc) {
 
 	s.ResolvableCount.Describe(ch)
 	s.ReachableCount.Describe(ch)
+	s.PingResultCount.Describe(ch)
 	s.LatencyCount.Describe(ch)
 
 	for _, poller := range s.Pollers {
@@ -197,6 +209,7 @@ func (s *Host) Collect(ch chan<- prometheus.Metric) {
 
 	s.ResolvableCount.Collect(ch)
 	s.ReachableCount.Collect(ch)
+	s.PingResultCount.Collect(ch)
 	s.LatencyCount.Collect(ch)
 
 	for _, poller := range s.Pollers {
@@ -274,8 +287,10 @@ func (s *Host) doPing() {
 			ping_success = ok
 			s.ping_latency = latency
 			s.LatencyCount.Add(float64(latency) / float64(time.Second))
+			s.PingResultCount.WithLabelValues(LBL_SUCCESS).Inc()
 			break
 		}
+		s.PingResultCount.WithLabelValues(LBL_FAIL).Inc()
 	}
 
 	if ping_success {

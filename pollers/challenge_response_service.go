@@ -201,7 +201,7 @@ func (s *ChallengeResponseService) Collect(ch chan <- prometheus.Metric) {
 	s.ServiceRequestSuccessful.Set(float64(s.serviceChallengeable))
 	s.ServiceRequestSize.Set(s.serviceChallengeSize)
 	if s.serviceChallengeTime != 0 { // Nothing should take 0 nanoseconds
-		s.ServiceChallengeTime.Set(float64(s.serviceChallengeTime * time.Microsecond))
+		s.ServiceChallengeTime.Set(float64(s.serviceChallengeTime / time.Microsecond))
 	} else {
 		s.ServiceChallengeTime.Set(math.NaN())
 	}
@@ -212,7 +212,7 @@ func (s *ChallengeResponseService) Collect(ch chan <- prometheus.Metric) {
 	s.ServiceRespondedSuccessfully.Set(float64(s.serviceResponsive))
 	s.ServiceResponseSize.Set(s.serviceResponseSize)
 	if s.serviceResponseTime != 0 {	// Nothing should take 0 nanoseconds
-		s.ServiceResponseDuration.Set(float64(s.serviceResponseTime * time.Microsecond))
+		s.ServiceResponseDuration.Set(float64(s.serviceResponseTime / time.Microsecond))
 	} else {
 		s.ServiceResponseDuration.Set(math.NaN())
 	}
@@ -352,7 +352,7 @@ func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64
 	if err != nil {
 		serviceResponseTTB = math.NaN()
 	} else {
-		serviceResponseTTB = float64(time.Now().Sub(startWaitTFB) * time.Microsecond)
+		serviceResponseTTB = float64(time.Now().Sub(startWaitTFB) / time.Microsecond)
 	}
 
 	for {
