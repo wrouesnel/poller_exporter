@@ -30,7 +30,7 @@ type ChallengeResponseService struct {
 	serviceChallengeSize float64	// Number of bytes sent to the service
 	serviceChallengeTime time.Duration // Time service took to receive challenge
 
-	serviceResponseTTB float64	// Time to first byte
+	serviceResponseTTB time.Duration	// Time to first byte
 
 	serviceResponsive Status		// Service responds when challenged
 	serviceResponseSize float64		// Number of bytes service responded with
@@ -207,7 +207,11 @@ func (s *ChallengeResponseService) Collect(ch chan <- prometheus.Metric) {
 	}
 
 	// Response
-	s.ServiceResponseTimeToFirstByte.Set(s.serviceResponseTTB)
+	if s.serviceResponseTTB != 0 { // Nothing should take 0 nanoseconds
+		s.ServiceResponseTimeToFirstByte.Set(float64(s.serviceResponseTTB / time.Microsecond))
+	} else {
+		s.ServiceResponseTimeToFirstByte.Set(math.NaN())
+	}
 
 	s.ServiceRespondedSuccessfully.Set(float64(s.serviceResponsive))
 	s.ServiceResponseSize.Set(s.serviceResponseSize)
@@ -264,13 +268,13 @@ func (this *ChallengeResponseService) Poll() {
 				this.serviceResponsive = FAILED
 				this.serviceResponseTime = 0
 				this.serviceResponseSize = 0
-				this.serviceResponseTTB = math.NaN()
+				this.serviceResponseTTB = 0
 			}
 		} else {
 			this.serviceResponsive = UNKNOWN
 			this.serviceResponseSize = math.NaN()
 			this.serviceResponseTime = 0
-			this.serviceResponseTTB = math.NaN()
+			this.serviceResponseTTB = 0
 		}
 	} else if this.isReader() {
 		this.serviceChallengeable = UNKNOWN
@@ -284,7 +288,7 @@ func (this *ChallengeResponseService) Poll() {
 		this.serviceChallengeSize = math.NaN()
 		this.serviceChallengeTime = 0
 
-		this.serviceResponseTTB = math.NaN()
+		this.serviceResponseTTB = 0
 
 		this.serviceResponsive = UNKNOWN
 		this.serviceResponseSize = math.NaN()
@@ -304,8 +308,8 @@ func (this *ChallengeResponseService) Poll() {
 		this.ServiceRespondedCount.WithLabelValues(LBL_FAIL).Inc()
 	}
 
-	if !math.IsNaN(this.serviceResponseTTB) {
-		this.ServiceResponseTimeToFirstByteCount.Add(this.serviceResponseTTB)
+	if this.serviceResponseTTB != 0 {
+		this.ServiceResponseTimeToFirstByteCount.Add(float64(this.serviceResponseTTB / time.Second ))
 	}
 
 	log.Debugln("Finished challenge_response poll.")
@@ -331,7 +335,7 @@ func (s *ChallengeResponseService) Challenge(conn io.Writer) Status {
 	return SUCCESS
 }
 
-func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64, float64) {
+func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64, time.Duration) {
 	// Read the response literal
 	var nTotalBytes uint64
 	var nbytes int
@@ -344,15 +348,15 @@ func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64
 
 	// Wait for the first byte
 	startWaitTFB := time.Now()
-	var serviceResponseTTB float64
+	var serviceResponseTTB time.Duration
 	firstByte := make([]byte,1)
 	nbytes, err = conn.Read(firstByte)
 	nTotalBytes += uint64(nbytes)
 	allBytes = append(allBytes, firstByte...)
 	if err != nil {
-		serviceResponseTTB = math.NaN()
+		serviceResponseTTB = 0
 	} else {
-		serviceResponseTTB = float64(time.Now().Sub(startWaitTFB) / time.Microsecond)
+		serviceResponseTTB = time.Now().Sub(startWaitTFB)
 	}
 
 	for {
