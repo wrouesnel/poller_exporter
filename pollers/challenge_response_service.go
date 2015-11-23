@@ -16,13 +16,21 @@ type ChallengeResponseService struct {
 	ServiceRequestSize prometheus.Gauge // Number of bytes sent to the service
 	ServiceChallengeTime prometheus.Gauge // Time it took to send the challenge
 
+	ServiceResponseTimeToFirstByte prometheus.Gauge // Time it took the service to send anything
+
 	ServiceRespondedSuccessfully prometheus.Gauge	// Indicates if the service responded with expected data
 	ServiceResponseSize prometheus.Gauge // Number of bytes read before response match
 	ServiceResponseDuration prometheus.Gauge // Time in microseconds to read the response bytes
 
+	ServiceRequestCount *prometheus.CounterVec	// Cumulative count of service requests
+	ServiceRespondedCount *prometheus.CounterVec // Cumulative count of service responses
+	ServiceResponseTimeToFirstByteCount prometheus.Counter // Cumulative count of service responses
+
 	serviceChallengeable Status	// Service can be successfully challenged
 	serviceChallengeSize float64	// Number of bytes sent to the service
 	serviceChallengeTime time.Duration // Time service took to receive challenge
+
+	serviceResponseTTB float64	// Time to first byte
 
 	serviceResponsive Status		// Service responds when challenged
 	serviceResponseSize float64		// Number of bytes service responded with
@@ -73,6 +81,15 @@ func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig
 				ConstLabels: clabels,
 			},
 		),
+		ServiceResponseTimeToFirstByte: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: Namespace,
+				Subsystem: "service",
+				Name: "request_time_to_first_byte_microseconds",
+				Help: "Time it took for the first response byte to arrive",
+				ConstLabels: clabels,
+			},
+		),
 		ServiceRespondedSuccessfully: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: Namespace,
@@ -97,6 +114,35 @@ func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig
 				Subsystem: "service",
 				Name: "response_time_microseconds",
 				Help: "Time the response took to be received in microseconds.",
+				ConstLabels: clabels,
+			},
+		),
+		ServiceRequestCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: Namespace,
+				Subsystem: "service",
+				Name: "writeable_total",
+				Help: "cumulative count of service request success and failures",
+				ConstLabels: clabels,
+			},
+			[]string{"result"},
+		),
+		ServiceRespondedCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: Namespace,
+				Subsystem: "service",
+				Name: "responsive_total",
+				Help: "cumulative count of service response successes and failures",
+				ConstLabels: clabels,
+			},
+			[]string{"result"},
+		),
+		ServiceResponseTimeToFirstByteCount: prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Namespace: Namespace,
+				Subsystem: "service",
+				Name: "request_time_to_first_byte_seconds_total",
+				Help: "cumulative count of time the service has taken to send its first byte",
 				ConstLabels: clabels,
 			},
 		),
@@ -135,9 +181,16 @@ func (s *ChallengeResponseService) Describe(ch chan <- *prometheus.Desc) {
 	s.ServiceRequestSuccessful.Describe(ch)
 	s.ServiceRequestSize.Describe(ch)
 	s.ServiceChallengeTime.Describe(ch)
+	s.ServiceResponseTimeToFirstByte.Describe(ch)
 	s.ServiceRespondedSuccessfully.Describe(ch)
 	s.ServiceResponseSize.Describe(ch)
 	s.ServiceResponseDuration.Describe(ch)
+
+	// Cumulative counters
+	s.ServiceRequestCount.Describe(ch)
+	s.ServiceRespondedCount.Describe(ch)
+	s.ServiceResponseTimeToFirstByteCount.Describe(ch)
+
 
 	// Parent collectors
 	s.Poller.Describe(ch)
@@ -154,6 +207,8 @@ func (s *ChallengeResponseService) Collect(ch chan <- prometheus.Metric) {
 	}
 
 	// Response
+	s.ServiceResponseTimeToFirstByte.Set(s.serviceResponseTTB)
+
 	s.ServiceRespondedSuccessfully.Set(float64(s.serviceResponsive))
 	s.ServiceResponseSize.Set(s.serviceResponseSize)
 	if s.serviceResponseTime != 0 {	// Nothing should take 0 nanoseconds
@@ -169,6 +224,11 @@ func (s *ChallengeResponseService) Collect(ch chan <- prometheus.Metric) {
 	s.ServiceRespondedSuccessfully.Collect(ch)
 	s.ServiceResponseSize.Collect(ch)
 	s.ServiceResponseDuration.Collect(ch)
+
+	// Cumulative counters
+	s.ServiceRequestCount.Collect(ch)
+	s.ServiceRespondedCount.Collect(ch)
+	s.ServiceResponseTimeToFirstByteCount.Collect(ch)
 
 	// Parent collectors
 	s.Poller.Collect(ch)
@@ -198,34 +258,56 @@ func (this *ChallengeResponseService) Poll() {
 		this.serviceChallengeTime = time.Now().Sub(startTime)
 		if this.isReader() {
 			if this.serviceChallengeable == SUCCESS {
-				this.serviceResponsive, this.serviceResponseSize = this.TryReadMatch(conn)
+				this.serviceResponsive, this.serviceResponseSize, this.serviceResponseTTB = this.TryReadMatch(conn)
 				this.serviceResponseTime = time.Now().Sub(startTime)
 			} else {
 				this.serviceResponsive = FAILED
 				this.serviceResponseTime = 0
 				this.serviceResponseSize = 0
+				this.serviceResponseTTB = math.NaN()
 			}
 		} else {
 			this.serviceResponsive = UNKNOWN
 			this.serviceResponseSize = math.NaN()
 			this.serviceResponseTime = 0
+			this.serviceResponseTTB = math.NaN()
 		}
 	} else if this.isReader() {
 		this.serviceChallengeable = UNKNOWN
 		this.serviceChallengeSize = math.NaN()
 		this.serviceChallengeTime = 0
 
-		this.serviceResponsive, this.serviceResponseSize = this.TryReadMatch(conn)
+		this.serviceResponsive, this.serviceResponseSize, this.serviceResponseTTB = this.TryReadMatch(conn)
 		this.serviceResponseTime = time.Now().Sub(startTime)
 	} else {
 		this.serviceChallengeable = UNKNOWN
 		this.serviceChallengeSize = math.NaN()
 		this.serviceChallengeTime = 0
 
+		this.serviceResponseTTB = math.NaN()
+
 		this.serviceResponsive = UNKNOWN
 		this.serviceResponseSize = math.NaN()
 		this.serviceResponseTime = 0
 	}
+
+	// Do cumulative counters
+	if this.serviceChallengeable == SUCCESS {
+		this.ServiceRequestCount.WithLabelValues(LBL_SUCCESS).Inc()
+	} else {
+		this.ServiceRequestCount.WithLabelValues(LBL_FAIL).Inc()
+	}
+
+	if this.serviceResponsive == SUCCESS {
+		this.ServiceRespondedCount.WithLabelValues(LBL_SUCCESS).Inc()
+	} else {
+		this.ServiceRespondedCount.WithLabelValues(LBL_FAIL).Inc()
+	}
+
+	if !math.IsNaN(this.serviceResponseTTB) {
+		this.ServiceResponseTimeToFirstByteCount.Add(this.serviceResponseTTB)
+	}
+
 	log.Debugln("Finished challenge_response poll.")
 }
 
@@ -242,21 +324,39 @@ func (s *ChallengeResponseService) Challenge(conn io.Writer) Status {
 	s.serviceChallengeSize = float64(challengeBytes)
 	if err != nil {
 		log.Infoln("Connection error doing ChallengeResponse check:", err)
+		s.ServiceRequestCount.WithLabelValues(LBL_FAIL).Inc()
 		return FAILED
 	}
+	s.ServiceRequestCount.WithLabelValues(LBL_SUCCESS).Inc()
 	return SUCCESS
 }
 
-func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64) {
+func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64, float64) {
 	// Read the response literal
 	var nTotalBytes uint64
+	var nbytes int
+	var err error
 	var allBytes []byte
 	currentBytes := make([]byte, 4096)
 
 	// Read bytes until the response can be matched or timeout.
 	serviceResponded := FAILED
+
+	// Wait for the first byte
+	startWaitTFB := time.Now()
+	var serviceResponseTTB float64
+	firstByte := make([]byte,1)
+	nbytes, err = conn.Read(firstByte)
+	nTotalBytes += uint64(nbytes)
+	allBytes = append(allBytes, firstByte...)
+	if err != nil {
+		serviceResponseTTB = math.NaN()
+	} else {
+		serviceResponseTTB = float64(time.Now().Sub(startWaitTFB) * time.Microsecond)
+	}
+
 	for {
-		nbytes, err := conn.Read(currentBytes)
+		nbytes, err = conn.Read(currentBytes)
 		nTotalBytes += uint64(nbytes)
 		allBytes = append(allBytes, currentBytes...)
 
@@ -270,6 +370,7 @@ func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64
 		} else {
 			if bytes.HasPrefix(allBytes, []byte(*s.ResponseLiteral)) {
 				serviceResponded = SUCCESS
+
 				log.Debugln("Matched byte literal after", nTotalBytes, "bytes")
 				break
 			}
@@ -285,5 +386,6 @@ func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64
 			break
 		}
 	}
-	return serviceResponded, float64(nTotalBytes)
+
+	return serviceResponded, float64(nTotalBytes), serviceResponseTTB
 }

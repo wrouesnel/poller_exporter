@@ -19,6 +19,7 @@ type HTTPService struct {
 
 	// Metrics
 	responseSuccess prometheus.Gauge	// Returns 1 if the HTTP status code was successful
+	responseCount *prometheus.CounterVec // Cumulative count of success and failed responses
 
 	lastResponseStatus int // last status code
 
@@ -46,6 +47,17 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 			Help:        "Was the HTTP response code successful",
 			ConstLabels: clabels,
 		}),
+
+		responseCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "http_response_result_total",
+				Help:        "Cumulative count of HTTP response checks",
+				ConstLabels: clabels,
+			},
+			[]string{"result"},
+		),
 	}
 
 	newService.ChallengeResponseService = *basePoller
@@ -54,13 +66,7 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 	return &newService
 }
 
-// Return true if the last polled status was one of the allowed statuses
-func (this *HTTPService) Status() Status {
-	// Check underlying connection succeeeded
-	if this.Poller.Status() == FAILED || this.Poller.Status() == UNKNOWN {
-		return this.Poller.Status()
-	}
-
+func (this *HTTPService) checkResponse() Status {
 	if _, ok := this.SuccessStatuses[this.lastResponseStatus]; ok {
 		return SUCCESS
 	}
@@ -75,8 +81,19 @@ func (this *HTTPService) Status() Status {
 	return FAILED
 }
 
+// Return true if the last polled status was one of the allowed statuses
+func (this *HTTPService) Status() Status {
+	// Check underlying connection succeeeded
+	if this.Poller.Status() == FAILED || this.Poller.Status() == UNKNOWN {
+		return this.Poller.Status()
+	}
+	return this.checkResponse()
+}
+
 func (this *HTTPService) Describe(ch chan<- *prometheus.Desc) {
 	this.responseSuccess.Describe(ch)
+
+	this.responseCount.Describe(ch)
 
 	this.Poller.Describe(ch) // Call base describe
 }
@@ -85,6 +102,8 @@ func (this *HTTPService) Collect(ch chan<- prometheus.Metric) {
 	// HTTP status
 	this.responseSuccess.Set(float64(this.Status()))
 	this.responseSuccess.Collect(ch)
+
+	this.responseCount.Collect(ch)
 
 	// Parent status (challenge response metrics)
 	this.Poller.Collect(ch)
@@ -138,6 +157,12 @@ func (this *HTTPService) Poll() {
 	// Get the status
 	this.lastResponseStatus = resp.StatusCode
 	log.Debugln("HTTP response", this.Host().Hostname, this.Port(), resp.StatusCode, resp.Status)
+
+	if this.checkResponse() == SUCCESS {
+		this.responseCount.WithLabelValues(LBL_SUCCESS).Inc()
+	} else {
+		this.responseCount.WithLabelValues(LBL_FAIL).Inc()
+	}
 
 	// Call the underlying ChallengeResponse to match on output if an output
 	// matcher is specified

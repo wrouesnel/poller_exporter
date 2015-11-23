@@ -20,11 +20,17 @@ type Host struct {
 
 	Pollers []Poller // List of services to poll
 
+	// Instantaneous metrics (easy to alert against)
 	NumPolls      prometheus.Counter // Number of times polls have been attempted
 	LastPollTime  prometheus.Gauge   // Time of last poll
 	Resolvable    prometheus.Gauge   // Is the hostname resolvable (IP is always true)
 	PathReachable prometheus.Gauge   // Is the host IP routable?
 	PingLatency       prometheus.Gauge   // Latency to contact host - NaN if unavailable
+
+	// Tally metrics (more accurate but harder)
+	ResolvableCount *prometheus.CounterVec	// success/failure count
+	ReachableCount *prometheus.CounterVec	// success/failure count
+	LatencyCount  prometheus.Counter		// cumulative latency from successful polls
 
 	lastPoll time.Time     // Time we last polled
 	ping_status Status	// Last known ping result
@@ -68,9 +74,39 @@ func NewHost(opts config.HostConfig) *Host {
 			Namespace:   Namespace,
 			Subsystem:   "host",
 			Name:        "latency_microseconds",
-			Help:        "service latency in milliseconds",
+			Help:        "service latency in microseconds",
 			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
 		}),
+		// Cumulative counters
+		ResolvableCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace:   Namespace,
+				Subsystem:   "host",
+				Name:        "resolveable_total",
+				Help:        "cumulative successful DNS resolutions",
+				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+			},
+			[]string{"result"},
+		),
+		ReachableCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace:   Namespace,
+				Subsystem:   "host",
+				Name:        "routable_total",
+				Help:        "cumulative successful network route resolutions",
+				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+			},
+			[]string{"result"},
+		),
+		LatencyCount: prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Namespace:   Namespace,
+				Subsystem:   "host",
+				Name:        "latency_seconds_total",
+				Help:        "cumulative service latency in seconds",
+				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+			},
+		),
 
 		ping_status: UNKNOWN,
 		ping_latency: time.Duration(math.MaxInt64),
@@ -129,6 +165,10 @@ func (s *Host) Describe(ch chan<- *prometheus.Desc) {
 	s.PingLatency.Describe(ch)
 	s.NumPolls.Describe(ch)
 
+	s.ResolvableCount.Describe(ch)
+	s.ReachableCount.Describe(ch)
+	s.LatencyCount.Describe(ch)
+
 	for _, poller := range s.Pollers {
 		poller.Describe(ch)
 	}
@@ -154,6 +194,10 @@ func (s *Host) Collect(ch chan<- prometheus.Metric) {
 	s.PingLatency.Collect(ch)
 
 	s.NumPolls.Collect(ch)
+
+	s.ResolvableCount.Collect(ch)
+	s.ReachableCount.Collect(ch)
+	s.LatencyCount.Collect(ch)
 
 	for _, poller := range s.Pollers {
 		poller.Collect(ch)
@@ -197,10 +241,12 @@ func (s *Host) Poll() {
 	ipAddrs, err := net.LookupHost(s.Hostname)
 	if err != nil {
 		s.Resolvable.Set(0)
+		s.ResolvableCount.WithLabelValues(LBL_FAIL).Inc()
 		return
 	}
 	s.IP = ipAddrs[0]
 	s.Resolvable.Set(1)
+	s.ResolvableCount.WithLabelValues(LBL_SUCCESS).Inc()
 	log.Debugln("Resolved", s.Hostname, s.IP)
 
 	// Can the host be reached by ICMP?
@@ -227,6 +273,7 @@ func (s *Host) doPing() {
 		if ok == true {
 			ping_success = ok
 			s.ping_latency = latency
+			s.LatencyCount.Add(float64(latency) / float64(time.Second))
 			break
 		}
 	}
@@ -234,8 +281,10 @@ func (s *Host) doPing() {
 	if ping_success {
 		log.Infoln("Success", s.Hostname, "ICMP ECHO", s.ping_latency)
 		s.ping_status = SUCCESS
+		s.ReachableCount.WithLabelValues(LBL_SUCCESS).Inc()
 	} else {
 		log.Infoln("FAILED", s.Hostname, "ICMP ECHO", s.PingCount, "pings")
 		s.ping_status = FAILED
+		s.ReachableCount.WithLabelValues(LBL_FAIL).Inc()
 	}
 }
