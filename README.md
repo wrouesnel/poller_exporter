@@ -24,3 +24,10 @@ is done for obvious reasons.
 Configuration is still not working correctly - fields do not properly override
 partly due to bugs in the Go YAML parser library. Specify explicit configurations
 to workaround.
+
+# Deploying via Docker
+Docker deployment can be done with the following:
+```
+$ docker build -t poller_exporter .
+$ docker run -p 9115:9115 -v /myconfig.yml:/poller_exporter.yml
+```
