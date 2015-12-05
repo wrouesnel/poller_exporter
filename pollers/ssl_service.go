@@ -6,7 +6,7 @@ import (
 	"net"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
 )
 
 // An SSL protected service. This can be any type of service, and simply adds

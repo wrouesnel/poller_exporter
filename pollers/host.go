@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
 	"github.com/wrouesnel/poller_exporter/pollers/ping"
 	config "github.com/wrouesnel/poller_exporter/config"
 	"math"

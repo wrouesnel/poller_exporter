@@ -8,28 +8,15 @@ disable_ping: false
 ping_count: 5
 
 hosts:
-  - hostname: php-shared-1.private.netregistry.net
+  - hostname: localhost
     ping_timeout: 5s
-    basic_checks:
-      - name: Basic node_exporter
-        proto: tcp
-        port: 9100
-        timeout: 10s
-    challenge_response_checks:
-      - name: CR node_exporter
-        proto: tcp
-        port: 9100
-        challenge: "GET /metrics HTTP/1.1\r\n\r\n"
-        response_re: "prometheus"
-        timeout: 10s
-        max_bytes: 50000
     http_checks:
-      - name: HTTP node_exporter check
+      - name: HTTP ssl test
         proto: tcp
+        ssl: true
         verb: GET
         url: "http://php-shared-1:9100/metrics"
-        port: 9100
-        response: "Metrics"
+        port: 4433
         timeout: 10s
         max_bytes: 50000
         success_status: 200 301

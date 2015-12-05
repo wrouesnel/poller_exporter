@@ -1,7 +1,7 @@
 package pollers
 
 import (
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/wrouesnel/poller_exporter/config"
 	"fmt"

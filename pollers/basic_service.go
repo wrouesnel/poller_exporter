@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 	"fmt"
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
 )
 
 type BasicService struct {

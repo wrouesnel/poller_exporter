@@ -10,7 +10,7 @@ import (
 	"path"
 	"math/rand"
 
-	log "github.com/prometheus/log"
+	log "github.com/prometheus/common/log"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/julienschmidt/httprouter"
