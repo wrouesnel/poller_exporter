@@ -173,14 +173,14 @@ func (this *HTTPService) Poll() {
 }
 
 // NewClient returns a http.Client using the specified http.RoundTripper.
-func NewClient(rt http.RoundTripper) *http.Client {
-	return &http.Client{Transport: rt}
+func NewClient(rt http.RoundTripper, timeout time.Duration) *http.Client {
+	return &http.Client{Transport: rt, Timeout: timeout}
 }
 
 // NewDeadlineConnClient returns a net.http client that inherits the supplied
 // net.Conn. This can be a TLS client.
 func NewDeadlineClient(conn net.Conn, timeout time.Duration) *http.Client {
-	return NewClient(NewDeadlineRoundTripper(conn, timeout))
+	return NewClient(NewDeadlineRoundTripper(conn, timeout), timeout)
 }
 
 // Returns an http.Roundtripper which wraps the passed in net.Conn to reuse an
