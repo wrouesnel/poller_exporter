@@ -163,9 +163,11 @@ func (this *HTTPService) Poll() {
 	// Check the response for anything
 	if this.lastResponseStatus == -1 {
 		this.serviceChallengeable = FAILED
+		this.serviceChallengeTime = 0
 	} else {
 		this.serviceChallengeable = SUCCESS
 		// Challenge size is NAN for HTTP at the moment
+		this.serviceChallengeTime = time.Now().Sub(startTime)
 	}
 
 	// Check the HTTP response for validity
