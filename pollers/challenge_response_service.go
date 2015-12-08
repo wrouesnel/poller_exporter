@@ -355,6 +355,8 @@ func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64
 	allBytes = append(allBytes, firstByte...)
 	if err != nil {
 		serviceResponseTTB = 0
+		log.Infoln("Connection error doing ChallengeResponse check:", err)
+		return serviceResponded, float64(nTotalBytes), serviceResponseTTB
 	} else {
 		serviceResponseTTB = time.Now().Sub(startWaitTFB)
 	}
