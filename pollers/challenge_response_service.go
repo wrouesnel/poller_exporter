@@ -328,10 +328,8 @@ func (s *ChallengeResponseService) Challenge(conn io.Writer) Status {
 	s.serviceChallengeSize = float64(challengeBytes)
 	if err != nil {
 		log.Infoln("Connection error doing ChallengeResponse check:", err)
-		s.ServiceRequestCount.WithLabelValues(LBL_FAIL).Inc()
 		return FAILED
 	}
-	s.ServiceRequestCount.WithLabelValues(LBL_SUCCESS).Inc()
 	return SUCCESS
 }
 

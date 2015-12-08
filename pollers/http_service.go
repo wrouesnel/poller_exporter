@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/wrouesnel/poller_exporter/config"
 	"net/url"
+	"math"
 )
 
 // An HTTP service is a degenerate ChallengeResponse service which does specific
@@ -146,6 +147,7 @@ func (this *HTTPService) Poll() {
 		Host:       url.Host,
 	}
 
+	startTime := time.Now()	// Start time from initial request
 	resp, err := client.Do(httpreq)
 	if err != nil {
 		log.Infoln("Error making HTTP request to ", this.Host(), ": ", err)
@@ -158,6 +160,15 @@ func (this *HTTPService) Poll() {
 	this.lastResponseStatus = resp.StatusCode
 	log.Debugln("HTTP response", this.Host().Hostname, this.Port(), resp.StatusCode, resp.Status)
 
+	// Check the response for anything
+	if this.lastResponseStatus == -1 {
+		this.serviceChallengeable = FAILED
+	} else {
+		this.serviceChallengeable = SUCCESS
+		// Challenge size is NAN for HTTP at the moment
+	}
+
+	// Check the HTTP response for validity
 	if this.checkResponse() == SUCCESS {
 		this.responseCount.WithLabelValues(LBL_SUCCESS).Inc()
 	} else {
@@ -165,11 +176,34 @@ func (this *HTTPService) Poll() {
 	}
 
 	// Call the underlying ChallengeResponse to match on output if an output
-	// matcher is specified
 	if this.isReader() {
-		this.ChallengeResponseService.TryReadMatch(resp.Body)
+		this.serviceResponsive, this.serviceResponseSize, this.serviceResponseTTB = this.ChallengeResponseService.TryReadMatch(resp.Body)
+		this.serviceResponseTime = time.Now().Sub(startTime)
+	} else {
+		this.serviceResponsive = UNKNOWN
+		this.serviceResponseSize = math.NaN()
+		this.serviceResponseTime = 0
+		this.serviceResponseTTB = 0
 	}
 
+	// Do cumulative counters
+	if this.serviceChallengeable == SUCCESS {
+		this.ServiceRequestCount.WithLabelValues(LBL_SUCCESS).Inc()
+	} else {
+		this.ServiceRequestCount.WithLabelValues(LBL_FAIL).Inc()
+	}
+
+	if this.serviceResponsive == SUCCESS {
+		this.ServiceRespondedCount.WithLabelValues(LBL_SUCCESS).Inc()
+	} else {
+		this.ServiceRespondedCount.WithLabelValues(LBL_FAIL).Inc()
+	}
+
+	if this.serviceResponseTTB != 0 {
+		this.ServiceResponseTimeToFirstByteCount.Add(float64(this.serviceResponseTTB / time.Second ))
+	}
+
+	log.Debugln("Finished http poll.")
 }
 
 // NewClient returns a http.Client using the specified http.RoundTripper.
