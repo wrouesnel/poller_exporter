@@ -134,14 +134,14 @@ func main() {
 	connectionLimiter := pollers.NewLimiter(*maxConnections)
 	hostQueue := make(chan *pollers.Host)
 
-
-	// Start the host dispatcher (re-invokes
+	// Start the host dispatcher
 	go func() {
 		for host := range hostQueue {
-			host.Poll(connectionLimiter, hostQueue)
+			go host.Poll(connectionLimiter, hostQueue)
 		}
 	}()
 
+	// Do the initial host dispatch
 	go func() {
 		for _, host := range monitoredHosts {
 			log.Debugln("Starting polling for hosts")
