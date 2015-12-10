@@ -253,9 +253,6 @@ func (this *ChallengeResponseService) Poll() {
 	}
 	defer conn.Close()
 
-	// Set deadline for all reads/writes to complete
-	conn.SetDeadline(time.Now().Add(time.Duration(this.Timeout)))
-
 	startTime := time.Now()
 	if this.isWriter() {
 		this.serviceChallengeable = this.Challenge(conn)	// Sets this.serviceChallengeSize

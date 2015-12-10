@@ -118,7 +118,7 @@ func (this *HTTPService) Poll() {
 	}
 	defer conn.Close()
 
-	client := NewDeadlineClient(conn, time.Duration(this.ChallengeResponseService.Timeout))
+	client := NewHTTPClient(conn)
 
 	var url url.URL
 	if this.Url.URL != nil {
@@ -126,11 +126,6 @@ func (this *HTTPService) Poll() {
 	} else {
 		// Build a default URL from the hostname.
 		url.Host = this.Host().Hostname
-		//if this.HTTPServiceConfig.UseSSL {
-		//	url.Scheme = "https"
-		//} else {
-		//	url.Scheme = "http"
-		//}
 		url.Scheme = "http"
 	}
 
@@ -208,35 +203,15 @@ func (this *HTTPService) Poll() {
 	log.Debugln("Finished http poll.")
 }
 
-// NewClient returns a http.Client using the specified http.RoundTripper.
-func NewClient(rt http.RoundTripper, timeout time.Duration) *http.Client {
-	return &http.Client{Transport: rt, Timeout: timeout}
-}
-
-// NewDeadlineConnClient returns a net.http client that inherits the supplied
-// net.Conn. This can be a TLS client.
-func NewDeadlineClient(conn net.Conn, timeout time.Duration) *http.Client {
-	return NewClient(NewDeadlineRoundTripper(conn, timeout), timeout)
-}
-
-// Returns an http.Roundtripper which wraps the passed in net.Conn to reuse an
-// established connection.
-func NewDeadlineRoundTripper(conn net.Conn, timeout time.Duration) http.RoundTripper {
-	return &http.Transport{
-		// We need to disable keepalive, because we set a deadline on the
-		// underlying connection.
-		DisableKeepAlives: true,
-		// Fake dial function returns the supplied net.Conn but sticks a deadline
-		// on it.
-		Dial: func(netw, addr string) (c net.Conn, err error) {
-			start := time.Now()
-
-			if err = conn.SetDeadline(start.Add(timeout)); err != nil {
-				conn.Close()
-				return nil, err
-			}
-
-			return conn, nil
+// NewHTTPClient returns an HTTP client which talks over the already established
+// connection
+func NewHTTPClient(conn net.Conn) *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+			Dial: func(netw, addr string) (c net.Conn, err error) {
+				return conn, nil
+			},
 		},
 	}
 }

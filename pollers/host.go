@@ -9,7 +9,6 @@ import (
 	"github.com/wrouesnel/poller_exporter/pollers/ping"
 	config "github.com/wrouesnel/poller_exporter/config"
 	"math"
-	"math/rand"
 )
 
 // Hosts are the top of a service hierarchy and contain a number of pollers.
@@ -36,6 +35,8 @@ type Host struct {
 	lastPoll time.Time     // Time we last polled
 	ping_status Status	// Last known ping result
 	ping_latency     time.Duration // Last known ping time
+
+	nextPollCh chan time.Time	// Timer channel for our text poll
 
 	config.HostConfig
 }
@@ -217,34 +218,11 @@ func (s *Host) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func (s *Host) StartPolling(delayStart bool) {
-	go func() {
-		log.Infoln("Polling", s.Hostname,
-			"poll_frequency", time.Duration(s.PollFrequency).String(),
-			"ping_timeout", time.Duration(s.PingTimeout).String())
+// Polls this host, and queues up the next poll
+func (s *Host) Poll(limiter *Limiter, hostQueue chan<- *Host) {
+	limiter.Lock()
+	defer limiter.Unlock()
 
-		// Delay the poll start by a random amount of the frequency
-		if delayStart {
-			startDelay := time.Duration(rand.Float64() * float64(s.PollFrequency))
-			startTimer := time.NewTimer(startDelay)
-			log.Debugln("Waiting", startDelay.String(), "to start", s.Hostname)
-			<-startTimer.C
-		}
-
-		for {
-			s.Poll() // Do the Poll
-
-			// Wait for the timer for next poll.
-			nextPoll := s.NextPoll()
-			if s.NextPoll() > 0 {
-				log.Debugln("Waiting for poll timer", s.Hostname, nextPoll)
-				<- time.After(nextPoll)
-			}
-		}
-	}()
-}
-
-func (s *Host) Poll() {
 	var err error
 	s.lastPoll = time.Now() // Mark poll start
 	s.LastPollTime.Set(float64(s.lastPoll.Unix()))
@@ -270,6 +248,18 @@ func (s *Host) Poll() {
 	// Call poller methods
 	for _, poller := range s.Pollers {
 		poller.Poll()
+	}
+
+	// Set a new poller timeout
+	timeToNext := s.NextPoll()
+	if timeToNext <= 0 {
+		timeToNext = 0
+	}
+
+	if hostQueue != nil {
+		time.AfterFunc(timeToNext, func() {
+			hostQueue <- s
+		})
 	}
 }
 

@@ -30,7 +30,7 @@ var (
 	metricsPath       = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	configFile		  = flag.String("collector.config", "poller_exporter.yml", "File to load poller config from")
 	skipPing		  = flag.Bool("collector.icmp.disable", false, "Ignore ICMP ping checks of host status (useful if not running as root)")
-	noDelayStart	  = flag.Bool("collector.no-delay-start", false, "Do not randomly stagger the startup of checks.")
+	maxConnections	  = flag.Int("collector.max-connections", 250, "Maximum number of hosts to poll simultaneously")
 )
 
 // Debug-related parameters
@@ -129,12 +129,25 @@ func main() {
 	// Trim monitoredHosts to the number we actually used
 	monitoredHosts = monitoredHosts[0:realidx]
 
-	// Start the poller services
-	for _, host := range monitoredHosts {
-		if host != nil {
-			host.StartPolling(!(*noDelayStart))
+	// This is the dispatcher. It is responsible for invoking the doPoll method
+	// of hosts.
+	connectionLimiter := pollers.NewLimiter(*maxConnections)
+	hostQueue := make(chan *pollers.Host)
+
+
+	// Start the host dispatcher (re-invokes
+	go func() {
+		for host := range hostQueue {
+			host.Poll(connectionLimiter, hostQueue)
 		}
-	}
+	}()
+
+	go func() {
+		for _, host := range monitoredHosts {
+			log.Debugln("Starting polling for hosts")
+			host.Poll(connectionLimiter, hostQueue)
+		}
+	}()
 
 	var handler http.Handler
 

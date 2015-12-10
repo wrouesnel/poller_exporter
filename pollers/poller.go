@@ -19,7 +19,8 @@ const LBL_SUCCESS = "successful"
 const LBL_FAIL = "failed"
 
 type Poller interface {
-	Poll()	// Causes the service to update its internal state.
+	// Causes the service to update its internal state.
+	Poll()
 
 	Name() string // Returns the name of the poller
 	Proto() string // Returns the protocol of the poller
