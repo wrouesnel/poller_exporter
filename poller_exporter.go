@@ -30,7 +30,7 @@ var (
 	metricsPath       = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	configFile		  = flag.String("collector.config", "poller_exporter.yml", "File to load poller config from")
 	skipPing		  = flag.Bool("collector.icmp.disable", false, "Ignore ICMP ping checks of host status (useful if not running as root)")
-	maxConnections	  = flag.Int("collector.max-connections", 250, "Maximum number of hosts to poll simultaneously")
+	maxConnections	  = flag.Int("collector.max-connections", 50, "Maximum number of hosts to poll simultaneously")
 )
 
 // Debug-related parameters
@@ -145,7 +145,7 @@ func main() {
 	go func() {
 		for _, host := range monitoredHosts {
 			log.Debugln("Starting polling for hosts")
-			host.Poll(connectionLimiter, hostQueue)
+			hostQueue <- host
 		}
 	}()
 
