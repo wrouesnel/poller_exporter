@@ -160,8 +160,10 @@ func (s *BasicService) dialAndScrape() (net.Conn, error) {
 		log.Warnln("0 deadline set for service. This is probably not what you want as services will flap.")
 	}
 
+	// Set absolute deadline
 	deadline :=  time.Now().Add(time.Duration(s.Timeout))
 
+	// Dialer deadline
 	dialer := net.Dialer{
 		Deadline: deadline,
 	}
@@ -176,6 +178,7 @@ func (s *BasicService) dialAndScrape() (net.Conn, error) {
 		s.portOpen = SUCCESS
 	}
 
+	// Connection deadline
 	conn.SetDeadline(deadline)
 
 	return conn, err

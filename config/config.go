@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"sort"
 	"net"
-	"github.com/prometheus/common/log"
 )
 
 var (
@@ -33,7 +32,7 @@ var (
 
 	DefaultBasicServiceConfig = BasicServiceConfig{
 		Protocol: "tcp",
-		MinimumFailures: 1,
+		//MinimumFailures: 1,
 	}
 
 	DefaultChallengeResponseServiceConfig = ChallengeResponseConfig{
