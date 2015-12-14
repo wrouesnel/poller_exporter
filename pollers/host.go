@@ -250,16 +250,17 @@ func (s *Host) Poll(limiter *Limiter, hostQueue chan<- *Host) {
 		poller.Poll()
 	}
 
-	// Set a new poller timeout
-	timeToNext := s.NextPoll()
-	if timeToNext <= 0 {
-		timeToNext = 0
-	}
-
 	if hostQueue != nil {
-		time.AfterFunc(timeToNext, func() {
+		timeToNext := s.NextPoll()
+		if timeToNext <= 0 {
+			log.Debugln("Host overdue, queuing immediately:", timeToNext)
 			hostQueue <- s
-		})
+		} else {
+			log.Debugln("Host pending, waiting to requeue:", timeToNext)
+			time.AfterFunc(timeToNext, func() {
+				hostQueue <- s
+			})
+		}
 	}
 }
 

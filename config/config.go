@@ -175,23 +175,23 @@ type BasicServiceConfig struct {
 	Timeout		Duration		`yaml:"timeout,omitempty"`		// Number of seconds to wait for response
 	UseSSL		bool			`yaml:"ssl,omitempty"`		// The service uses SSL
 
-	XXX map[string]interface{} 	`yaml:",omitempty"`	// Catch any unknown flags.
+	//XXX map[string]interface{} 	`yaml:",omitempty"`	// Catch any unknown flags.
 }
 
 // Ideally we'd use this, but go-yaml has problems with nested structs at the
 // moment and I don't have time to debug them.
 
-//func (this *BasicServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-//	// Prevent recursively calling unmarshal
-//	*this = DefaultBasicServiceConfig
-//	fmt.Println()
-//	type plain BasicServiceConfig
-//	if err := unmarshal((*plain)(this)); err != nil {
-//		return err
-//	}
-//
-//	return nil
-//}
+func (this *BasicServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Prevent recursively calling unmarshal
+	*this = DefaultBasicServiceConfig
+	fmt.Println()
+	type plain BasicServiceConfig
+	if err := unmarshal((*plain)(this)); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // Similar to a banner check, but first sends the specified data befoe looking
 // for a response.
@@ -203,34 +203,24 @@ type ChallengeResponseConfig struct {
 	MaxBytes uint64				`yaml:"max_bytes,omitempty"` // Maximum number of bytes to read while looking for the response regex. 0 means read until connection closes.
 }
 
-type ChallengeResponseConfigValidationError struct {}
+type ChallengeResponseConfigValidationError struct {
+	ServiceDescription string
+}
 func (r ChallengeResponseConfigValidationError) Error() string {
-	return "validation: requires at least 1 of response_re or response"
+	return fmt.Sprintln("validation: requires at least 1 of response_re or response:", r.ServiceDescription)
 }
 
-//func (this *ChallengeResponseConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-//	// Prevent recursively calling unmarshal
-//	*this = DefaultChallengeResponseServiceConfig
-//
-//	type plain ChallengeResponseConfig
-//	if err := unmarshal((*plain)(this)); err != nil {
-//		return err
-//	}
-//
-//	if err := unmarshal((*plain)(this)); err != nil {
+func (this *ChallengeResponseConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Prevent recursively calling unmarshal
+	*this = DefaultChallengeResponseServiceConfig
 
-//		return err
-//	}
-//
-//	//spew.Print(*this)
-//
-////	// Validate that at least 1 response condition exists
-////	if this.ResponseRegex == nil && this.ResponseLiteral == nil {
-////		return error(ChallengeResponseConfigValidationError{})
-////	}
-//
-//	return nil
-//}
+	type plain ChallengeResponseConfig
+	if err := unmarshal((*plain)(this)); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // A range of HTTP status codes which can be specifid in YAML using human-friendly
 // ranging notation
@@ -337,30 +327,17 @@ type HTTPServiceConfig struct {
 	Password string 	`yaml:"password,omitempty"` // Password for HTTP basic auth
 }
 
-//func (this *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-//	//*this = DefaultHTTPServiceConfig
-//
-//	// This is so we can have pretty notation for HTTP success statuses
-//	type HTTPServiceConfigProxy struct {
-//		ChallengeResponseConfig 	`yaml:",inline,omitempty"`
-//		Verb	string		`yaml:"verb,omitempty"` // HTTP verb to use
-//		Url		URL			`yaml:"url,omitempty"`	// HTTP request URL to send
-//		SuccessStatuses string `yaml:"success_status,omitempty"` // List of status codes indicating success
-//		BasicAuth bool		`yaml:"auth,omitempty"` // Use HTTP basic auth
-//		Username string		`yaml:"username,omitempty"` // Username for HTTP basic auth
-//		Password string 	`yaml:"password,omitempty"` // Password for HTTP basic auth
-//	}
-//
-//	var proxy HTTPServiceConfigProxy
-//
-//	if err := unmarshal(&proxy); err != nil {
-//		return err
-//	}
-//
-//	// Convert success statuses
-//
-//	return nil
-//}
+func (this *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	*this = DefaultHTTPServiceConfig
+
+	type plain HTTPServiceConfig
+
+	if err := unmarshal((*plain)(this)); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // Borrowed from the Prometheus config logic
 type Duration time.Duration

@@ -20,11 +20,6 @@ anchor expressions. In general this is more useful.
 Both forms work on the byte-stream returned by the service - no utf-8 conversion
 is done for obvious reasons.
 
-# Errata
-Configuration is still not working correctly - fields do not properly override
-partly due to bugs in the Go YAML parser library. Specify explicit configurations
-to workaround.
-
 # Deploying via Docker
 Docker deployment can be done with the following:
 ```

@@ -9,7 +9,6 @@ ping_count: 5
 
 hosts:
   - hostname: localhost
-    ping_timeout: 5s
     http_checks:
       - name: HTTP ssl test
         proto: tcp
@@ -17,6 +16,5 @@ hosts:
         verb: GET
         url: "http://php-shared-1:9100/metrics"
         port: 4433
-        timeout: 10s
         max_bytes: 50000
         success_status: 200 301
