@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"sort"
 	"net"
+	"github.com/prometheus/common/log"
 )
 
 var (
@@ -32,6 +33,7 @@ var (
 
 	DefaultBasicServiceConfig = BasicServiceConfig{
 		Protocol: "tcp",
+		MinimumFailures: 1,
 	}
 
 	DefaultChallengeResponseServiceConfig = ChallengeResponseConfig{
@@ -174,8 +176,7 @@ type BasicServiceConfig struct {
 	Port		uint64			`yaml:"port"`		// Port number of the service
 	Timeout		Duration		`yaml:"timeout,omitempty"`		// Number of seconds to wait for response
 	UseSSL		bool			`yaml:"ssl,omitempty"`		// The service uses SSL
-
-	//XXX map[string]interface{} 	`yaml:",omitempty"`	// Catch any unknown flags.
+	//MinimumFailures uint64		`yaml:"minimum_failures,omitempty` // Minimum number of failures before marking servie as down
 }
 
 // Ideally we'd use this, but go-yaml has problems with nested structs at the

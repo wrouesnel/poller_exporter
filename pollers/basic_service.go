@@ -156,8 +156,14 @@ func (s *BasicService) doPoll() net.Conn {
 
 // Dial and scrape the basic service parameters
 func (s *BasicService) dialAndScrape() (net.Conn, error) {
+	if s.Timeout == 0 {
+		log.Warnln("0 deadline set for service. This is probably not what you want as services will flap.")
+	}
+
+	deadline :=  time.Now().Add(time.Duration(s.Timeout))
+
 	dialer := net.Dialer{
-		Deadline: time.Now().Add(time.Duration(s.Timeout)),
+		Deadline: deadline,
 	}
 
 	var err error
@@ -169,6 +175,8 @@ func (s *BasicService) dialAndScrape() (net.Conn, error) {
 	} else {
 		s.portOpen = SUCCESS
 	}
+
+	conn.SetDeadline(deadline)
 
 	return conn, err
 }
