@@ -177,9 +177,11 @@ func (s *BasicService) dialAndScrape() (net.Conn, error) {
 	} else {
 		s.portOpen = SUCCESS
 	}
-
-	// Connection deadline
-	conn.SetDeadline(deadline)
+	
+	if conn != nil {
+		// Connection deadline
+		conn.SetDeadline(deadline)
+	}
 
 	return conn, err
 }
