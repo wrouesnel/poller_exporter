@@ -4,7 +4,6 @@ import (
 	"github.com/prometheus/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/wrouesnel/poller_exporter/config"
-	"fmt"
 	"bytes"
 	"time"
 	"io"
@@ -41,14 +40,9 @@ type ChallengeResponseService struct {
 }
 
 func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig) *ChallengeResponseService {
-	clabels := prometheus.Labels{
-		"hostname" : host.Hostname,
-		"name" : opts.Name,
-		"protocol" : opts.Protocol,
-		"port" : fmt.Sprintf("%d", opts.Port),
-	}
 
 	basePoller := NewBasicService(host, opts.BasicServiceConfig)
+	clabels := basePoller.labels()
 
 	newService := ChallengeResponseService{
 		serviceChallengeable: UNKNOWN,

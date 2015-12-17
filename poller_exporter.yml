@@ -33,3 +33,10 @@ hosts:
         timeout: 10s
         max_bytes: 50000
         success_status: 200 301
+      - name: Spamhaus domain check
+        proto: tcp
+        url: "https://www.spamhaus.org/sbl/listings/netregistry.com.au"
+        port: 443
+        ssl: true
+        labels:
+          noalerts: yes
