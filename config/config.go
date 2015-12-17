@@ -150,6 +150,7 @@ type HostConfig struct {
 	PingDisable bool `yaml:"disable_ping,omitempty"`	// Disable ping checks for this host
 	PingTimeout Duration `yaml:"ping_timeout,omitempty"` // Maximum ping timeout
 	PingCount uint64 `yaml:"ping_count,omitempty"`	// Number of pings to send each poll
+	ConstantLabels map[string]string `yaml:"labels,omitempty"` // Constant labels to add to the host and it's metrics
 
 	BasicChecks []*BasicServiceConfig	`yaml:"basic_checks,omitempty"`
 	ChallengeResponseChecks []*ChallengeResponseConfig	`yaml:"challenge_response_checks,omitempty"`
@@ -165,6 +166,11 @@ func (c *HostConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+
+	if c.ConstantLabels == nil {
+		c.ConstantLabels = make(map[string]string)
+	}
+
 	return checkOverflow(c.XXX, "hosts")
 }
 
@@ -175,6 +181,7 @@ type BasicServiceConfig struct {
 	Port		uint64			`yaml:"port"`		// Port number of the service
 	Timeout		Duration		`yaml:"timeout,omitempty"`		// Number of seconds to wait for response
 	UseSSL		bool			`yaml:"ssl,omitempty"`		// The service uses SSL
+	ConstantLabels map[string]string `yaml:"labels,omitempty"` // Constant labels to add to this service
 	//MinimumFailures uint64		`yaml:"minimum_failures,omitempty` // Minimum number of failures before marking servie as down
 }
 

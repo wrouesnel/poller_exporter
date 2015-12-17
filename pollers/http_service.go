@@ -1,7 +1,6 @@
 package pollers
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -29,14 +28,9 @@ type HTTPService struct {
 }
 
 func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
-	clabels := prometheus.Labels{
-		"hostname": host.Hostname,
-		"name":     opts.Name,
-		"protocol": opts.Protocol,
-		"port":     fmt.Sprintf("%d", opts.Port),
-	}
-
 	basePoller := NewChallengeResponseService(host, opts.ChallengeResponseConfig)
+
+	clabels := basePoller.labels()
 
 	newService := HTTPService{
 		lastResponseStatus : -1,
@@ -129,7 +123,8 @@ func (this *HTTPService) Poll() {
 		url.Scheme = "http"
 	}
 
-	log.Debugln("HTTP", this.Verb, this.Host().Hostname, this.Port(), "for", url.String())
+	log.Debugln("HTTP", this.Verb, this.Host().Hostname, this.Port(),
+		"for", url.String())
 
 	httpreq := &http.Request{
 		Method:     this.Verb,

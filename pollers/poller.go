@@ -32,4 +32,5 @@ type Poller interface {
 	Collect(ch chan <- prometheus.Metric)
 
 	doPoll() net.Conn	// Polls the base methods and returns the established connection object
+	labels() prometheus.Labels // Returns the labels currently applied to the base type
 }

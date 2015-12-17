@@ -48,15 +48,23 @@ func (s *BasicService) Collect(ch chan <- prometheus.Metric) {
 	s.PortOpen.Collect(ch)
 }
 
+func (s *BasicService) labels() prometheus.Labels {
+	return prometheus.Labels(s.ConstantLabels)
+}
+
 func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 	var poller Poller
 
-	clabels := prometheus.Labels{
-		"hostname" : host.Hostname,
-		"name" : opts.Name,
-		"protocol" : opts.Protocol,
-		"port" : fmt.Sprintf("%d", opts.Port),
+	// Set constant labels, merge down host labels, add user labels
+	opts.ConstantLabels["name"] = opts.Name
+	opts.ConstantLabels["protocol"] = opts.Protocol
+	opts.ConstantLabels["port"] = fmt.Sprintf("%d", opts.Port)
+
+	for key, value := range host.ConstantLabels {
+		opts.ConstantLabels[key] = value
 	}
+
+	clabels := prometheus.Labels(opts.ConstantLabels)
 
 	newBasicService := &BasicService{
 		host: host,
