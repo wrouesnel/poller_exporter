@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"gopkg.in/yaml.v2"
 	"time"
-	"github.com/prometheus/common/model"
+	. "github.com/prometheus/common/model"
 	"regexp"
 	//"errors"
 	//"strconv"
@@ -338,9 +338,6 @@ func (this *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) 
 
 	return nil
 }
-
-// Wholesale rip-off the Prometheus config library
-type Duration model.Duration
 
 // Implements a custom []byte slice so we can unmarshal one from an escaped string
 type Bytes []byte
