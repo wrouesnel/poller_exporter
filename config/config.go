@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"gopkg.in/yaml.v2"
 	"time"
-	"github.com/prometheus/prometheus/util/strutil"
+	"github.com/prometheus/common/model"
 	"regexp"
 	//"errors"
 	//"strconv"
@@ -339,31 +339,8 @@ func (this *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) 
 	return nil
 }
 
-// Borrowed from the Prometheus config logic
-type Duration time.Duration
-
-// UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	if err := unmarshal(&s); err != nil {
-		return err
-	}
-	dur, err := strutil.StringToDuration(s)
-	if err != nil {
-		return err
-	}
-	*d = Duration(dur)
-	return nil
-}
-
-// MarshalYAML implements the yaml.Marshaler interface.
-func (d Duration) MarshalYAML() (interface{}, error) {
-	return strutil.DurationToString(time.Duration(d)), nil
-}
-
-func (d Duration) String() string {
-	return strutil.DurationToString(time.Duration(d))
-}
+// Wholesale rip-off the Prometheus config library
+type Duration model.Duration
 
 // Implements a custom []byte slice so we can unmarshal one from an escaped string
 type Bytes []byte
