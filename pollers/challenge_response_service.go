@@ -1,7 +1,6 @@
 package pollers
 
 import (
-	"github.com/prometheus/common/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/wrouesnel/poller_exporter/config"
 	"fmt"
@@ -309,7 +308,7 @@ func (this *ChallengeResponseService) Poll() {
 		this.ServiceResponseTimeToFirstByteCount.Add(float64(this.serviceResponseTTB / time.Second ))
 	}
 
-	log.Debugln("Finished challenge_response poll.")
+	this.log().Debugln("Finished challenge_response poll.")
 }
 
 func (this *ChallengeResponseService) isWriter() bool {
@@ -324,7 +323,7 @@ func (s *ChallengeResponseService) Challenge(conn io.Writer) Status {
 	challengeBytes, err := conn.Write([]byte(*s.ChallengeLiteral))
 	s.serviceChallengeSize = float64(challengeBytes)
 	if err != nil {
-		log.Infoln("Connection error doing ChallengeResponse check:", err)
+		s.log().Infoln("Connection error doing ChallengeResponse check:", err)
 		return FAILED
 	}
 	return SUCCESS
@@ -350,7 +349,7 @@ func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64
 	allBytes = append(allBytes, firstByte...)
 	if err != nil {
 		serviceResponseTTB = 0
-		log.Infoln("Connection error doing ChallengeResponse check:", err)
+		s.log().Infoln("Connection error doing ChallengeResponse check:", err)
 		return serviceResponded, float64(nTotalBytes), serviceResponseTTB
 	} else {
 		serviceResponseTTB = time.Now().Sub(startWaitTFB)
@@ -365,25 +364,25 @@ func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64
 		if s.ResponseRegex != nil {
 			if s.ResponseRegex.Match(allBytes) {
 				serviceResponded = SUCCESS
-				log.Debugln("Matched regex after", nTotalBytes, "bytes")
+				s.log().Debugln("Matched regex after", nTotalBytes, "bytes")
 				break
 			}
 		} else {
 			if bytes.HasPrefix(allBytes, []byte(*s.ResponseLiteral)) {
 				serviceResponded = SUCCESS
 
-				log.Debugln("Matched byte literal after", nTotalBytes, "bytes")
+				s.log().Debugln("Matched byte literal after", nTotalBytes, "bytes")
 				break
 			}
 		}
 
 		if err != nil {
-			log.Infoln("Connection error doing ChallengeResponse check:", err)
+			s.log().Infoln("Connection error doing ChallengeResponse check:", err)
 			break
 		}
 
 		if nTotalBytes >= s.MaxBytes {
-			log.Infoln("Maximum read bytes exceeded during check: read", nTotalBytes, ">=", s.MaxBytes)
+			s.log().Infoln("Maximum read bytes exceeded during check: read", nTotalBytes, ">=", s.MaxBytes)
 			break
 		}
 	}

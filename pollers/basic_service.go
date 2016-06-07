@@ -185,3 +185,10 @@ func (s *BasicService) dialAndScrape() (net.Conn, error) {
 
 	return conn, err
 }
+
+func (s *BasicService) log() log.Logger {
+	if s.host != nil {
+		return s.host.log()
+	}
+	return log.With("logger_note", "no host")
+}

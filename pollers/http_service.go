@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 	"github.com/wrouesnel/poller_exporter/config"
 	"net/url"
 	"math"
@@ -129,7 +128,7 @@ func (this *HTTPService) Poll() {
 		url.Scheme = "http"
 	}
 
-	log.Debugln("HTTP", this.Verb, this.Host().Hostname, this.Port(), "for", url.String())
+	this.log().Debugln("HTTP", this.Verb, this.Host().Hostname, this.Port(), "for", url.String())
 
 	httpreq := &http.Request{
 		Method:     this.Verb,
@@ -145,7 +144,7 @@ func (this *HTTPService) Poll() {
 	startTime := time.Now()	// Start time from initial request
 	resp, err := client.Do(httpreq)
 	if err != nil {
-		log.Infoln("Error making HTTP request to ", this.Host(), ": ", err)
+		this.log().Infoln("Error making HTTP request to ", this.Host(), ": ", err)
 		this.lastResponseStatus = 0
 		return
 	}
@@ -153,7 +152,7 @@ func (this *HTTPService) Poll() {
 
 	// Get the status
 	this.lastResponseStatus = resp.StatusCode
-	log.Debugln("HTTP response", this.Host().Hostname, this.Port(), resp.StatusCode, resp.Status)
+	this.log().Debugln("HTTP response", this.Host().Hostname, this.Port(), resp.StatusCode, resp.Status)
 
 	// Check the response for anything
 	if this.lastResponseStatus == -1 {
@@ -200,7 +199,7 @@ func (this *HTTPService) Poll() {
 		this.ServiceResponseTimeToFirstByteCount.Add(float64(this.serviceResponseTTB / time.Second ))
 	}
 
-	log.Debugln("Finished http poll.")
+	this.log().Debugln("Finished http poll.")
 }
 
 // NewHTTPClient returns an HTTP client which talks over the already established

@@ -238,7 +238,7 @@ func (s *Host) Poll(limiter *Limiter, hostQueue chan<- *Host) {
 	s.IP = ipAddrs[0]
 	s.Resolvable.Set(1)
 	s.ResolvableCount.WithLabelValues(LBL_SUCCESS).Inc()
-	log.Debugln("Resolved", s.Hostname, s.IP)
+	s.log().Debugln("Resolved hostname")
 
 	// Can the host be reached by ICMP?
 	if !s.PingDisable {
@@ -247,16 +247,17 @@ func (s *Host) Poll(limiter *Limiter, hostQueue chan<- *Host) {
 
 	// Call poller methods
 	for _, poller := range s.Pollers {
+		s.log().Debugln("Invoking Poller:", poller.Name())
 		poller.Poll()
 	}
 
 	if hostQueue != nil {
 		timeToNext := s.NextPoll()
 		if timeToNext <= 0 {
-			log.Debugln("Host overdue, queuing immediately:", timeToNext)
+			s.log().Debugln("Host overdue, queuing immediately:", timeToNext)
 			hostQueue <- s
 		} else {
-			log.Debugln("Host pending, waiting to requeue:", timeToNext)
+			s.log().Debugln("Host pending, waiting to requeue:", timeToNext)
 			time.AfterFunc(timeToNext, func() {
 				hostQueue <- s
 			})
@@ -271,7 +272,7 @@ func (s *Host) doPing() {
 	// reasons it could happen and better ways to do it too.
 	var ping_success bool
 	for i := uint64(0); i < s.PingCount; i++ {
-		log.Debugln("Pinging", s.Hostname)
+		s.log().Debugln("Pinging", s.Hostname)
 		ok, latency := ping.Ping(net.ParseIP(s.IP), time.Duration(s.PingTimeout))
 
 		if ok == true {
@@ -285,12 +286,16 @@ func (s *Host) doPing() {
 	}
 
 	if ping_success {
-		log.Infoln("Success", s.Hostname, "ICMP ECHO", s.ping_latency)
+		s.log().Infoln("SUCCESS ICMP ECHO", s.ping_latency)
 		s.ping_status = SUCCESS
 		s.ReachableCount.WithLabelValues(LBL_SUCCESS).Inc()
 	} else {
-		log.Infoln("FAILED", s.Hostname, "ICMP ECHO", s.PingCount, "pings")
+		s.log().Infoln("FAILED ICMP ECHO", s.PingCount, "pings")
 		s.ping_status = FAILED
 		s.ReachableCount.WithLabelValues(LBL_FAIL).Inc()
 	}
+}
+
+func (s *Host) log() log.Logger {
+	return log.With("host", s.Hostname).With("ip", s.IP)
 }

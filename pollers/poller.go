@@ -5,6 +5,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"net"
 	"math"
+"github.com/prometheus/common/log"
 )
 
 const Namespace = "poller"
@@ -32,4 +33,6 @@ type Poller interface {
 	Collect(ch chan <- prometheus.Metric)
 
 	doPoll() net.Conn	// Polls the base methods and returns the established connection object
+
+	log() log.Logger	// Provide common logging for pollers
 }
