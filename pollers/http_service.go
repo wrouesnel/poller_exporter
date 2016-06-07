@@ -123,6 +123,7 @@ func (this *HTTPService) Poll() {
 	if this.Url.URL != nil {
 		url = *this.Url.URL
 	} else {
+		this.log().Debugln("Using default URL for HTTP poller")
 		// Build a default URL from the hostname.
 		url.Host = this.Host().Hostname
 		url.Scheme = "http"

@@ -424,6 +424,7 @@ func (u *URL) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	urlp, err := url.Parse(s)
+
 	if err != nil {
 		return err
 	}
