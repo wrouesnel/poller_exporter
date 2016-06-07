@@ -36,8 +36,6 @@ type Host struct {
 	ping_status Status	// Last known ping result
 	ping_latency     time.Duration // Last known ping time
 
-	nextPollCh chan time.Time	// Timer channel for our text poll
-
 	config.HostConfig
 }
 
@@ -220,48 +218,53 @@ func (s *Host) Collect(ch chan<- prometheus.Metric) {
 
 // Polls this host, and queues up the next poll
 func (s *Host) Poll(limiter *Limiter, hostQueue chan<- *Host) {
-	limiter.Lock()
-	defer limiter.Unlock()
-
-	var err error
-	s.lastPoll = time.Now() // Mark poll start
+	// Mark the start of the poller and increment the count
+	s.lastPoll = time.Now()
 	s.LastPollTime.Set(float64(s.lastPoll.Unix()))
 	s.NumPolls.Inc()
 
-	// Is host resolvable ?
-	ipAddrs, err := net.LookupHost(s.Hostname)
-	if err != nil {
-		s.Resolvable.Set(0)
-		s.ResolvableCount.WithLabelValues(LBL_FAIL).Inc()
-		return
-	}
-	s.IP = ipAddrs[0]
-	s.Resolvable.Set(1)
-	s.ResolvableCount.WithLabelValues(LBL_SUCCESS).Inc()
-	s.log().Debugln("Resolved hostname")
+	// Use the connection limiter in this closure so we can ensure an unlock
+	func() {
+		limiter.Lock()
+		defer limiter.Unlock()
 
-	// Can the host be reached by ICMP?
-	if !s.PingDisable {
-		s.doPing()
-	}
+		var err error
 
-	// Call poller methods
-	for _, poller := range s.Pollers {
-		s.log().Debugln("Invoking Poller:", poller.Name())
-		poller.Poll()
-	}
+		// Is host resolvable ?
+		ipAddrs, err := net.LookupHost(s.Hostname)
+		if err != nil {
+			s.Resolvable.Set(0)
+			s.ResolvableCount.WithLabelValues(LBL_FAIL).Inc()
+			return
+		}
+		s.IP = ipAddrs[0]
+		s.Resolvable.Set(1)
+		s.ResolvableCount.WithLabelValues(LBL_SUCCESS).Inc()
+		s.log().Debugln("Resolved hostname")
 
+		// Can the host be reached by ICMP?
+		if !s.PingDisable {
+			s.doPing()
+		}
+
+		// Call poller methods
+		for _, poller := range s.Pollers {
+			s.log().Debugln("Invoking Poller:", poller.Name())
+			poller.Poll()
+		}
+	}()
+
+	// Schedule a requeue of ourselves
 	if hostQueue != nil {
 		timeToNext := s.NextPoll()
 		if timeToNext <= 0 {
 			s.log().Debugln("Host overdue, queuing immediately:", timeToNext)
-			hostQueue <- s
 		} else {
 			s.log().Debugln("Host pending, waiting to requeue:", timeToNext)
-			time.AfterFunc(timeToNext, func() {
-				hostQueue <- s
-			})
+			<- time.After(timeToNext)
+			s.log().Debugln("Poll time finished, requeuing")
 		}
+		hostQueue <- s
 	}
 }
 
