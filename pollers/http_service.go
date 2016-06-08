@@ -31,6 +31,7 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 	basePoller := NewChallengeResponseService(host, opts.ChallengeResponseConfig)
 
 	clabels := basePoller.labels()
+	log.Debugln(clabels)
 
 	newService := HTTPService{
 		lastResponseStatus : -1,
@@ -87,7 +88,6 @@ func (this *HTTPService) Status() Status {
 
 func (this *HTTPService) Describe(ch chan<- *prometheus.Desc) {
 	this.responseSuccess.Describe(ch)
-
 	this.responseCount.Describe(ch)
 
 	this.Poller.Describe(ch) // Call base describe

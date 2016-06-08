@@ -197,6 +197,10 @@ func (this *BasicServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error)
 		return err
 	}
 
+	if this.ConstantLabels == nil {
+		this.ConstantLabels = make(map[string]string)
+	}
+
 	return nil
 }
 
