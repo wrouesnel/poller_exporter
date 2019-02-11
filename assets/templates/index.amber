@@ -1,6 +1,6 @@
 head
-    //script[type="text/javascript"][src="static/js/bootstrap.js"]
-    link[type="text/css"][rel="stylesheet"][href="static/css/bootstrap.css"]
+    script[type="text/javascript"][src="static/main.js"]
+    link[type="text/css"][rel="stylesheet"][href="static/main.css"]
     link[type="text/css"][rel="stylesheet"][href="static/css/bootstrap-theme.css"]
 body
     div.container-fluid

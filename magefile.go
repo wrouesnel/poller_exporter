@@ -561,7 +561,7 @@ func UpdateTools() error {
 
 // Assets builds binary assets to be bundled into the binary.
 func Assets() error {
-	mg.Deps(Tools)
+	mg.Deps(Tools, Web)
 
 	if err := os.MkdirAll("assets/generated", os.FileMode(0777)); err != nil {
 		return err
@@ -589,6 +589,18 @@ func Assets() error {
 	}
 
 	return nil
+}
+
+// NodeModules runs npm i
+func NodeModules() error {
+	mg.Deps(Tools)
+	return sh.RunV("npm", "i")
+}
+
+// Web builds the web assets
+func Web() error {
+	mg.Deps(Tools, NodeModules)
+	return sh.RunV("node_modules/.bin/webpack")
 }
 
 // Lint runs gometalinter for code quality. CI will run this before accepting PRs.

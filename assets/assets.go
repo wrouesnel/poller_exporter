@@ -47,7 +47,7 @@ func StaticFiles(settings apisettings.APISettings, router *httprouter.Router) *h
 
 		templateContent, err := Asset(templatePath)
 		if err != nil {
-			log.Panicln("Template not found:", templatePath)
+			log.Fatalln("Template not found:", templatePath)
 		}
 
 		tmpl := amber.MustCompile(string(templateContent), amber.Options{PrettyPrint: true})
