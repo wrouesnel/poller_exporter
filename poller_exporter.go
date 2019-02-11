@@ -89,7 +89,7 @@ func main() {
 
 	router.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		data := struct{
-			Cfg *config.Config
+			Cfg *config.PollerExporterConfig
 			Hosts *[]*pollers.Host
 		}{
 			Cfg : cfg,

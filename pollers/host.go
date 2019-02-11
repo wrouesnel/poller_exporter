@@ -124,7 +124,7 @@ func NewHost(opts config.HostConfig) *Host {
 	newHost.HostConfig = opts
 
 	// Default everything to NaN since we don't know them
-	newHost.NumPolls.Set(0) // Except this one.
+	// newHost.NumPolls.Set(0) // Except this one. // We used to do this explicitely, the interface has changed to make it implicit
 	newHost.Resolvable.Set(math.NaN())
 	newHost.PathReachable.Set(math.NaN())
 	newHost.PingLatency.Set(math.NaN())
