@@ -4,11 +4,12 @@ import (
 	"net"
 	"time"
 
+	"math"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"github.com/wrouesnel/poller_exporter/pollers/ping"
 	config "github.com/wrouesnel/poller_exporter/config"
-	"math"
+	"github.com/wrouesnel/poller_exporter/pollers/ping"
 )
 
 // Hosts are the top of a service hierarchy and contain a number of pollers.
@@ -24,17 +25,17 @@ type Host struct {
 	LastPollTime  prometheus.Gauge   // Time of last poll
 	Resolvable    prometheus.Gauge   // Is the hostname resolvable (IP is always true)
 	PathReachable prometheus.Gauge   // Is the host IP routable?
-	PingLatency       prometheus.Gauge   // Latency to contact host - NaN if unavailable
+	PingLatency   prometheus.Gauge   // Latency to contact host - NaN if unavailable
 
 	// Tally metrics (more accurate but harder)
-	ResolvableCount *prometheus.CounterVec	// success/failure count
-	ReachableCount *prometheus.CounterVec	// success/failure count
-	PingResultCount *prometheus.CounterVec		// cumulative count of pings
-	LatencyCount  prometheus.Counter		// cumulative latency from successful polls
+	ResolvableCount *prometheus.CounterVec // success/failure count
+	ReachableCount  *prometheus.CounterVec // success/failure count
+	PingResultCount *prometheus.CounterVec // cumulative count of pings
+	LatencyCount    prometheus.Counter     // cumulative latency from successful polls
 
-	lastPoll time.Time     // Time we last polled
-	ping_status Status	// Last known ping result
-	ping_latency     time.Duration // Last known ping time
+	lastPoll     time.Time     // Time we last polled
+	ping_status  Status        // Last known ping result
+	ping_latency time.Duration // Last known ping time
 
 	config.HostConfig
 }
@@ -98,7 +99,7 @@ func NewHost(opts config.HostConfig) *Host {
 			},
 			[]string{"result"},
 		),
-		PingResultCount : prometheus.NewCounterVec(
+		PingResultCount: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace:   Namespace,
 				Subsystem:   "host",
@@ -118,7 +119,7 @@ func NewHost(opts config.HostConfig) *Host {
 			},
 		),
 
-		ping_status: UNKNOWN,
+		ping_status:  UNKNOWN,
 		ping_latency: time.Duration(math.MaxInt64),
 	}
 	newHost.HostConfig = opts
@@ -164,7 +165,7 @@ func (s *Host) SincePoll() time.Duration {
 
 // Return the expected time till the next poll is attempted
 func (s *Host) NextPoll() time.Duration {
-	return s.lastPoll.Add(time.Duration(s.PollFrequency)).Sub(time.Now())
+	return s.lastPoll.Add(time.Duration(s.PollInterval)).Sub(time.Now())
 }
 
 func (s *Host) Describe(ch chan<- *prometheus.Desc) {
@@ -261,7 +262,7 @@ func (s *Host) Poll(limiter *Limiter, hostQueue chan<- *Host) {
 			s.log().Debugln("Host overdue, queuing immediately:", timeToNext)
 		} else {
 			s.log().Debugln("Host pending, waiting to requeue:", timeToNext)
-			<- time.After(timeToNext)
+			<-time.After(timeToNext)
 			s.log().Debugln("Poll time finished, requeuing")
 		}
 		hostQueue <- s

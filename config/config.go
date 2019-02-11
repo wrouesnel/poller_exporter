@@ -4,16 +4,16 @@ package config
 
 import (
 	//"github.com/prometheus/client_golang/prometheus"
-	. "github.com/prometheus/common/model"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"time"
+
+	. "github.com/prometheus/common/model"
+	"gopkg.in/yaml.v2"
+
 	//"errors"
 	//"strconv"
 	"fmt"
 	"strings"
-
-	"net"
 )
 
 var (
@@ -22,7 +22,7 @@ var (
 	}
 
 	DefaultHostConfig HostConfig = HostConfig{
-		PollFrequency: DefaultConfig.PollFrequency,
+		PollInterval: DefaultConfig.PollFrequency,
 	}
 
 	DefaultBasicServiceConfig = BasicServiceConfig{
@@ -96,7 +96,7 @@ func (c *PollerExporterConfig) UnmarshalYAML(unmarshal func(interface{}) error) 
 	}
 
 	// Propagate host defaults
-	DefaultHostConfig.PollFrequency = c.PollFrequency
+	DefaultHostConfig.PollInterval = c.PollFrequency
 	DefaultHostConfig.PingTimeout = c.PingTimeout
 	DefaultHostConfig.PingDisable = c.PingDisable
 	DefaultHostConfig.PingCount = c.PingCount
@@ -113,38 +113,14 @@ func (c *PollerExporterConfig) UnmarshalYAML(unmarshal func(interface{}) error) 
 	return checkOverflow(c.XXX, "")
 }
 
-// PollerExporterConfig wrapper type for an IP Network
-type IPNetwork struct {
-	net.IPNet
-}
-
-func (this *IPNetwork) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	if err := unmarshal(&s); err != nil {
-		return err
-	}
-
-	_, ipnet, err := net.ParseCIDR(s)
-	if err != nil {
-		return err
-	}
-
-	this.IPNet = *ipnet
-	return nil
-}
-
-func (this IPNetwork) MarshalYAML() (interface{}, error) {
-	return this.String(), nil
-}
-
 // Defines a host which we want to find service information about.
 // Hosts export DNS checks.
 type HostConfig struct {
-	Hostname      string   `yaml:"hostname"`                 // Host or IP to contact
-	PollFrequency Duration `yaml:"poll_frequency,omitempty"` // Frequency to poll this specific host
-	PingDisable   bool     `yaml:"disable_ping,omitempty"`   // Disable ping checks for this host
-	PingTimeout   Duration `yaml:"ping_timeout,omitempty"`   // Maximum ping timeout
-	PingCount     uint64   `yaml:"ping_count,omitempty"`     // Number of pings to send each poll
+	Hostname     string   `yaml:"hostname"`                 // Host or IP to contact
+	PollInterval Duration `yaml:"poll_frequency,omitempty"` // Frequency to poll this specific host
+	PingDisable  bool     `yaml:"disable_ping,omitempty"`   // Disable ping checks for this host
+	PingTimeout  Duration `yaml:"ping_timeout,omitempty"`   // Maximum ping timeout
+	PingCount    uint64   `yaml:"ping_count,omitempty"`     // Number of pings to send each poll
 
 	BasicChecks             []*BasicServiceConfig      `yaml:"basic_checks,omitempty"`
 	ChallengeResponseChecks []*ChallengeResponseConfig `yaml:"challenge_response_checks,omitempty"`

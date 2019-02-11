@@ -6,20 +6,21 @@ import (
 	"net/http"
 	"time"
 
+	"math"
+	"net/url"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/wrouesnel/poller_exporter/config"
-	"net/url"
-	"math"
 )
 
 // An HTTP service is a degenerate ChallengeResponse service which does specific
 // status code checking and always reads all the bytes it's sent.
 type HTTPService struct {
-	successMap map[int]bool	// Map of success code
+	successMap map[int]bool // Map of success code
 
 	// Metrics
-	responseSuccess prometheus.Gauge	// Returns 1 if the HTTP status code was successful
-	responseCount *prometheus.CounterVec // Cumulative count of success and failed responses
+	responseSuccess prometheus.Gauge       // Returns 1 if the HTTP status code was successful
+	responseCount   *prometheus.CounterVec // Cumulative count of success and failed responses
 
 	lastResponseStatus int // last status code
 
@@ -38,7 +39,7 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 	basePoller := NewChallengeResponseService(host, opts.ChallengeResponseConfig)
 
 	newService := HTTPService{
-		lastResponseStatus : -1,
+		lastResponseStatus: -1,
 
 		responseSuccess: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
@@ -142,7 +143,7 @@ func (this *HTTPService) Poll() {
 		Host:       url.Host,
 	}
 
-	startTime := time.Now()	// Start time from initial request
+	startTime := time.Now() // Start time from initial request
 	resp, err := client.Do(httpreq)
 	if err != nil {
 		this.log().Infoln("Error making HTTP request to ", this.Host(), ": ", err)
@@ -197,7 +198,7 @@ func (this *HTTPService) Poll() {
 	}
 
 	if this.serviceResponseTTB != 0 {
-		this.ServiceResponseTimeToFirstByteCount.Add(float64(this.serviceResponseTTB / time.Second ))
+		this.ServiceResponseTimeToFirstByteCount.Add(float64(this.serviceResponseTTB / time.Second))
 	}
 
 	this.log().Debugln("Finished http poll.")

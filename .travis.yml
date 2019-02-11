@@ -1,6 +1,9 @@
 language: go
 go:
-- 1.5.1
-script: 
-- go build -v
-- go test -v ./...
+- '1.8'
+cache:
+  directories:
+  - tools/bin
+script:
+- CONCURRENT_LINTERS=1 LINTER_DEADLINE=180s go run mage.go all
+- tools/bin/goveralls -coverprofile=cover.out -service=travis-ci

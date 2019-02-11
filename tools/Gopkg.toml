@@ -1,0 +1,33 @@
+required = ["github.com/golang/dep","github.com/wadey/gocovmerge","github.com/mattn/goveralls","github.com/fatih/gomodifytags","github.com/tmthrgd/go-bindata/go-bindata","github.com/cheekybits/genny","github.com/alvaroloes/enumer","github.com/GoASTScanner/gas/cmd/gas","github.com/alecthomas/gometalinter","honnef.co/go/tools/cmd/gosimple","honnef.co/go/tools/cmd/megacheck","honnef.co/go/tools/cmd/unused","github.com/tsenart/deadcode","github.com/mibk/dupl","github.com/kisielk/errcheck","4d63.com/gochecknoglobals","4d63.com/gochecknoinits","github.com/jgautheron/goconst/cmd/goconst","github.com/alecthomas/gocyclo","golang.org/x/tools/cmd/goimports","github.com/golang/lint/golint","github.com/securego/gosec/cmd/gosec","honnef.co/go/tools/cmd/gosimple","golang.org/x/tools/cmd/gotype","golang.org/x/tools/cmd/gotype","github.com/gordonklaus/ineffassign","mvdan.cc/interfacer","github.com/walle/lll/cmd/lll","github.com/mdempsky/maligned","honnef.co/go/tools/cmd/megacheck","github.com/client9/misspell/cmd/misspell","github.com/alexkohler/nakedret","github.com/stripe/safesql","honnef.co/go/tools/cmd/staticcheck","github.com/opennota/check/cmd/structcheck","github.com/mdempsky/unconvert","mvdan.cc/unparam","honnef.co/go/tools/cmd/unused","github.com/opennota/check/cmd/varcheck"]
+
+[[constraint]]
+  name = "github.com/golang/dep"
+  version = "0.4.1"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/wadey/gocovmerge"
+
+[[constraint]]
+  name = "github.com/mattn/goveralls"
+  version = "0.0.2"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/tmthrgd/go-bindata"
+
+[[constraint]]
+  branch = "issue/153"
+  name = "github.com/GoASTScanner/gas"
+
+[[constraint]]
+  name = "github.com/alecthomas/gometalinter"
+  version = "2.0.6"
+
+[[constraint]]
+  name = "gopkg.in/alecthomas/kingpin.v3-unstable"
+  revision = "63abe20a23e29e80bbef8089bd3dee3ac25e5306"
+
+[prune]
+  go-tests = true
+  unused-packages = true

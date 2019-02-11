@@ -1,21 +1,22 @@
 package pollers
 
 import (
-	config "github.com/wrouesnel/poller_exporter/config"
-	"github.com/prometheus/client_golang/prometheus"
+	"fmt"
 	"net"
 	"time"
-	"fmt"
+
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	config "github.com/wrouesnel/poller_exporter/config"
 )
 
 type BasicService struct {
 	portOpen Status // Was the port successfully accessed?
 
-	PortOpen	prometheus.Gauge	// Port open metric
+	PortOpen      prometheus.Gauge       // Port open metric
 	PortOpenCount *prometheus.CounterVec // Cumulative number of port open checks
 
-	host *Host	// The host this service is attached to
+	host *Host // The host this service is attached to
 	config.BasicServiceConfig
 }
 
@@ -39,11 +40,11 @@ func (s *BasicService) Proto() string {
 	return s.Protocol
 }
 
-func (s *BasicService) Describe(ch chan <- *prometheus.Desc) {
+func (s *BasicService) Describe(ch chan<- *prometheus.Desc) {
 	s.PortOpen.Describe(ch)
 }
 
-func (s *BasicService) Collect(ch chan <- prometheus.Metric) {
+func (s *BasicService) Collect(ch chan<- prometheus.Metric) {
 	s.PortOpen.Set(float64(s.portOpen))
 	s.PortOpen.Collect(ch)
 }
@@ -52,30 +53,30 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 	var poller Poller
 
 	clabels := prometheus.Labels{
-		"hostname" : host.Hostname,
-		"name" : opts.Name,
-		"protocol" : opts.Protocol,
-		"port" : fmt.Sprintf("%d", opts.Port),
+		"hostname": host.Hostname,
+		"name":     opts.Name,
+		"protocol": opts.Protocol,
+		"port":     fmt.Sprintf("%d", opts.Port),
 	}
 
 	newBasicService := &BasicService{
-		host: host,
+		host:     host,
 		portOpen: UNKNOWN,
 		PortOpen: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "port_open_boolean",
-				Help: "whether the targeted port by the service is open (i.e. can be connected to)",
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "port_open_boolean",
+				Help:        "whether the targeted port by the service is open (i.e. can be connected to)",
 				ConstLabels: clabels,
 			},
 		),
 		PortOpenCount: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "port_open_count",
-				Help: "cumulative count of checks for if the port is open",
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "port_open_count",
+				Help:        "cumulative count of checks for if the port is open",
 				ConstLabels: clabels,
 			},
 			[]string{"result"},
@@ -88,40 +89,40 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 	// If SSL, then return an SSL service instead
 	if opts.UseSSL {
 		newSSLservice := SSLService{
-			SSLNotBefore : prometheus.NewGaugeVec(prometheus.GaugeOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "ssl_validity_notbefore",
-				Help: "SSL certificate valid from",
+			SSLNotBefore: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "ssl_validity_notbefore",
+				Help:        "SSL certificate valid from",
 				ConstLabels: clabels,
 			}, []string{"commonName"}),
-			SSLNotAfter : prometheus.NewGaugeVec(prometheus.GaugeOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "ssl_validity_notafter",
-				Help: "SSL certificate expiry",
+			SSLNotAfter: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "ssl_validity_notafter",
+				Help:        "SSL certificate expiry",
 				ConstLabels: clabels,
 			}, []string{"commonName"}),
-			SSLValid : prometheus.NewGaugeVec(prometheus.GaugeOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "ssl_validity_valid",
-				Help: "SSL certificate can be validated by the scraper process",
+			SSLValid: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "ssl_validity_valid",
+				Help:        "SSL certificate can be validated by the scraper process",
 				ConstLabels: clabels,
 			}, []string{"commonName"}),
 			SSLValidCount: prometheus.NewCounterVec(
 				prometheus.CounterOpts{
-					Namespace: Namespace,
-					Subsystem: "service",
-					Name: "ssl_validity_valid_total",
-					Help: "cumulative count of SSL validations",
+					Namespace:   Namespace,
+					Subsystem:   "service",
+					Name:        "ssl_validity_valid_total",
+					Help:        "cumulative count of SSL validations",
 					ConstLabels: clabels,
 				},
 				[]string{"result"},
 			),
 			Poller: poller,
 		}
-		poller = Poller(&newSSLservice)	// Turn the SSL service into a Poller
+		poller = Poller(&newSSLservice) // Turn the SSL service into a Poller
 	}
 
 	return poller
@@ -141,7 +142,7 @@ func (s *BasicService) Poll() {
 // Implements the real polling functionality, but returns the connection object
 // so other classes can inherit it.
 func (s *BasicService) doPoll() net.Conn {
-	log.Debugln("Dialing basic service", s.Host().Hostname, s.Port(), s.Name(),)
+	log.Debugln("Dialing basic service", s.Host().Hostname, s.Port(), s.Name())
 	conn, err := s.dialAndScrape()
 	if err != nil {
 		log.Infoln("Error", s.Host().Hostname, s.Port(), s.Name(), err)
@@ -161,7 +162,7 @@ func (s *BasicService) dialAndScrape() (net.Conn, error) {
 	}
 
 	// Set absolute deadline
-	deadline :=  time.Now().Add(time.Duration(s.Timeout))
+	deadline := time.Now().Add(time.Duration(s.Timeout))
 
 	// Dialer deadline
 	dialer := net.Dialer{
@@ -177,7 +178,7 @@ func (s *BasicService) dialAndScrape() (net.Conn, error) {
 	} else {
 		s.portOpen = SUCCESS
 	}
-	
+
 	if conn != nil {
 		// Connection deadline
 		conn.SetDeadline(deadline)

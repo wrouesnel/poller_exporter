@@ -1,7 +1,7 @@
 package pollers
 
 func NewLimiter(size int) *Limiter {
-	return &Limiter{ make(chan int, size) }
+	return &Limiter{make(chan int, size)}
 }
 
 // Basic generic resource limiter
@@ -14,5 +14,5 @@ func (this *Limiter) Lock() {
 }
 
 func (this *Limiter) Unlock() {
-	<- this.throttle
+	<-this.throttle
 }

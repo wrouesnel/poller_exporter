@@ -3,12 +3,13 @@
 package config
 
 import (
+	"fmt"
+	"net"
 	"net/url"
 	"regexp"
-	"strings"
-	"strconv"
 	"sort"
-	"fmt"
+	"strconv"
+	"strings"
 )
 
 // Implements a custom []byte slice so we can unmarshal one from an escaped string
@@ -19,7 +20,7 @@ func (b *Bytes) Copy() *Bytes {
 	if b == nil {
 		return nil
 	}
-	c := b[:]
+	c := (*b)[:]
 	return &c
 }
 
@@ -121,7 +122,32 @@ func (u URL) MarshalYAML() (interface{}, error) {
 	return nil, nil
 }
 
-// A range of HTTP status codes which can be specifid in YAML using human-friendly
+// IPNetwork wraps the golang IPNet type to be yaml specifiable
+type IPNetwork struct {
+	net.IPNet
+}
+
+// UnmarshalYAML implements yaml.Unmarshaller
+func (this *IPNetwork) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+
+	_, ipnet, err := net.ParseCIDR(s)
+	if err != nil {
+		return err
+	}
+
+	this.IPNet = *ipnet
+	return nil
+}
+
+func (this IPNetwork) MarshalYAML() (interface{}, error) {
+	return this.String(), nil
+}
+
+// HTTPStatusRange is a range of HTTP status codes which can be specifid in YAML using human-friendly
 // ranging notation
 type HTTPStatusRange map[int]bool
 
@@ -189,7 +215,7 @@ func (hsr *HTTPStatusRange) UnmarshalYAML(unmarshal func(interface{}) error) err
 func (hsr HTTPStatusRange) MarshalYAML() (interface{}, error) {
 	var statusCodes []int
 	var output []string
-	for k, _ := range hsr {
+	for k := range hsr {
 		statusCodes = append(statusCodes, k)
 	}
 
@@ -205,7 +231,7 @@ func (hsr HTTPStatusRange) MarshalYAML() (interface{}, error) {
 			if idx >= len(statusCodes) {
 				break
 			}
-			if statusCodes[idx] - prev != 1 {
+			if statusCodes[idx]-prev != 1 {
 				// Check if it's a single number
 				if statusCodes[idx-1] == start {
 					output = append(output, fmt.Sprintf("%d", start))

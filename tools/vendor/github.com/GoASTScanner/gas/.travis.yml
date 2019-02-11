@@ -1,0 +1,14 @@
+language: go
+before_script:
+  - go vet $(go list ./... | grep -v /vendor/)
+go:
+  - 1.5
+  - tip
+install:
+  - go get -v github.com/onsi/ginkgo/ginkgo
+  - go get -v github.com/onsi/gomega
+  - go get -v -t ./...
+  - export PATH=$PATH:$HOME/gopath/bin
+
+script: ginkgo -r
+

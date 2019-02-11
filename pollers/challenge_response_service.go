@@ -1,38 +1,39 @@
 package pollers
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/wrouesnel/poller_exporter/config"
-	"fmt"
 	"bytes"
-	"time"
+	"fmt"
 	"io"
 	"math"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/wrouesnel/poller_exporter/config"
 )
 
 type ChallengeResponseService struct {
 	ServiceRequestSuccessful prometheus.Gauge // Indicates if the service could be successfully sent data
-	ServiceRequestSize prometheus.Gauge // Number of bytes sent to the service
-	ServiceChallengeTime prometheus.Gauge // Time it took to send the challenge
+	ServiceRequestSize       prometheus.Gauge // Number of bytes sent to the service
+	ServiceChallengeTime     prometheus.Gauge // Time it took to send the challenge
 
 	ServiceResponseTimeToFirstByte prometheus.Gauge // Time it took the service to send anything
 
-	ServiceRespondedSuccessfully prometheus.Gauge	// Indicates if the service responded with expected data
-	ServiceResponseSize prometheus.Gauge // Number of bytes read before response match
-	ServiceResponseDuration prometheus.Gauge // Time in microseconds to read the response bytes
+	ServiceRespondedSuccessfully prometheus.Gauge // Indicates if the service responded with expected data
+	ServiceResponseSize          prometheus.Gauge // Number of bytes read before response match
+	ServiceResponseDuration      prometheus.Gauge // Time in microseconds to read the response bytes
 
-	ServiceRequestCount *prometheus.CounterVec	// Cumulative count of service requests
-	ServiceRespondedCount *prometheus.CounterVec // Cumulative count of service responses
-	ServiceResponseTimeToFirstByteCount prometheus.Counter // Cumulative count of service responses
+	ServiceRequestCount                 *prometheus.CounterVec // Cumulative count of service requests
+	ServiceRespondedCount               *prometheus.CounterVec // Cumulative count of service responses
+	ServiceResponseTimeToFirstByteCount prometheus.Counter     // Cumulative count of service responses
 
-	serviceChallengeable Status	// Service can be successfully challenged
-	serviceChallengeSize float64	// Number of bytes sent to the service
+	serviceChallengeable Status        // Service can be successfully challenged
+	serviceChallengeSize float64       // Number of bytes sent to the service
 	serviceChallengeTime time.Duration // Time service took to receive challenge
 
-	serviceResponseTTB time.Duration	// Time to first byte
+	serviceResponseTTB time.Duration // Time to first byte
 
-	serviceResponsive Status		// Service responds when challenged
-	serviceResponseSize float64		// Number of bytes service responded with
+	serviceResponsive   Status        // Service responds when challenged
+	serviceResponseSize float64       // Number of bytes service responded with
 	serviceResponseTime time.Duration // Time service took to response
 
 	Poller
@@ -41,111 +42,110 @@ type ChallengeResponseService struct {
 
 func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig) *ChallengeResponseService {
 	clabels := prometheus.Labels{
-		"hostname" : host.Hostname,
-		"name" : opts.Name,
-		"protocol" : opts.Protocol,
-		"port" : fmt.Sprintf("%d", opts.Port),
+		"hostname": host.Hostname,
+		"name":     opts.Name,
+		"protocol": opts.Protocol,
+		"port":     fmt.Sprintf("%d", opts.Port),
 	}
 
 	basePoller := NewBasicService(host, opts.BasicServiceConfig)
 
 	newService := ChallengeResponseService{
 		serviceChallengeable: UNKNOWN,
-		serviceResponsive: UNKNOWN,
+		serviceResponsive:    UNKNOWN,
 
 		ServiceRequestSuccessful: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "writeable_boolean",
-				Help: "true (1) if the service could be sent data, 0 for failed, NaN for unknown",
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "writeable_boolean",
+				Help:        "true (1) if the service could be sent data, 0 for failed, NaN for unknown",
 				ConstLabels: clabels,
 			},
 		),
 		ServiceRequestSize: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "request_size_bytes",
-				Help: "Number of bytes sent to the service",
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "request_size_bytes",
+				Help:        "Number of bytes sent to the service",
 				ConstLabels: clabels,
 			},
 		),
 		ServiceChallengeTime: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "request_time_microseconds",
-				Help: "Time it took to send the request to the service",
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "request_time_microseconds",
+				Help:        "Time it took to send the request to the service",
 				ConstLabels: clabels,
 			},
 		),
 		ServiceResponseTimeToFirstByte: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "request_time_to_first_byte_microseconds",
-				Help: "Time it took for the first response byte to arrive",
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "request_time_to_first_byte_microseconds",
+				Help:        "Time it took for the first response byte to arrive",
 				ConstLabels: clabels,
 			},
 		),
 		ServiceRespondedSuccessfully: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "responsive_boolean",
-				Help: "true (1) if the target port responded with expected data, 0 for failed, NaN for unknown",
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "responsive_boolean",
+				Help:        "true (1) if the target port responded with expected data, 0 for failed, NaN for unknown",
 				ConstLabels: clabels,
 			},
 		),
 		ServiceResponseSize: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "response_size_bytes",
-				Help: "Number of bytes the service responded with before request was satisified",
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "response_size_bytes",
+				Help:        "Number of bytes the service responded with before request was satisified",
 				ConstLabels: clabels,
 			},
 		),
 		ServiceResponseDuration: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "response_time_microseconds",
-				Help: "Time the response took to be received in microseconds.",
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "response_time_microseconds",
+				Help:        "Time the response took to be received in microseconds.",
 				ConstLabels: clabels,
 			},
 		),
 		ServiceRequestCount: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "writeable_total",
-				Help: "cumulative count of service request success and failures",
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "writeable_total",
+				Help:        "cumulative count of service request success and failures",
 				ConstLabels: clabels,
 			},
 			[]string{"result"},
 		),
 		ServiceRespondedCount: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "responsive_total",
-				Help: "cumulative count of service response successes and failures",
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "responsive_total",
+				Help:        "cumulative count of service response successes and failures",
 				ConstLabels: clabels,
 			},
 			[]string{"result"},
 		),
 		ServiceResponseTimeToFirstByteCount: prometheus.NewCounter(
 			prometheus.CounterOpts{
-				Namespace: Namespace,
-				Subsystem: "service",
-				Name: "request_time_to_first_byte_seconds_total",
-				Help: "cumulative count of time the service has taken to send its first byte",
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "request_time_to_first_byte_seconds_total",
+				Help:        "cumulative count of time the service has taken to send its first byte",
 				ConstLabels: clabels,
 			},
 		),
-
 	}
 
 	newService.Poller = basePoller
@@ -176,7 +176,7 @@ func (s *ChallengeResponseService) Status() Status {
 	return s.Poller.Status()
 }
 
-func (s *ChallengeResponseService) Describe(ch chan <- *prometheus.Desc) {
+func (s *ChallengeResponseService) Describe(ch chan<- *prometheus.Desc) {
 	s.ServiceRequestSuccessful.Describe(ch)
 	s.ServiceRequestSize.Describe(ch)
 	s.ServiceChallengeTime.Describe(ch)
@@ -190,12 +190,11 @@ func (s *ChallengeResponseService) Describe(ch chan <- *prometheus.Desc) {
 	s.ServiceRespondedCount.Describe(ch)
 	s.ServiceResponseTimeToFirstByteCount.Describe(ch)
 
-
 	// Parent collectors
 	s.Poller.Describe(ch)
 }
 
-func (s *ChallengeResponseService) Collect(ch chan <- prometheus.Metric) {
+func (s *ChallengeResponseService) Collect(ch chan<- prometheus.Metric) {
 	// Request
 	s.ServiceRequestSuccessful.Set(float64(s.serviceChallengeable))
 	s.ServiceRequestSize.Set(s.serviceChallengeSize)
@@ -214,7 +213,7 @@ func (s *ChallengeResponseService) Collect(ch chan <- prometheus.Metric) {
 
 	s.ServiceRespondedSuccessfully.Set(float64(s.serviceResponsive))
 	s.ServiceResponseSize.Set(s.serviceResponseSize)
-	if s.serviceResponseTime != 0 {	// Nothing should take 0 nanoseconds
+	if s.serviceResponseTime != 0 { // Nothing should take 0 nanoseconds
 		s.ServiceResponseDuration.Set(float64(s.serviceResponseTime / time.Microsecond))
 	} else {
 		s.ServiceResponseDuration.Set(math.NaN())
@@ -254,7 +253,7 @@ func (this *ChallengeResponseService) Poll() {
 
 	startTime := time.Now()
 	if this.isWriter() {
-		this.serviceChallengeable = this.Challenge(conn)	// Sets this.serviceChallengeSize
+		this.serviceChallengeable = this.Challenge(conn) // Sets this.serviceChallengeSize
 		this.serviceChallengeTime = time.Now().Sub(startTime)
 		if this.isReader() {
 			if this.serviceChallengeable == SUCCESS {
@@ -305,7 +304,7 @@ func (this *ChallengeResponseService) Poll() {
 	}
 
 	if this.serviceResponseTTB != 0 {
-		this.ServiceResponseTimeToFirstByteCount.Add(float64(this.serviceResponseTTB / time.Second ))
+		this.ServiceResponseTimeToFirstByteCount.Add(float64(this.serviceResponseTTB / time.Second))
 	}
 
 	this.log().Debugln("Finished challenge_response poll.")
@@ -343,7 +342,7 @@ func (s *ChallengeResponseService) TryReadMatch(conn io.Reader) (Status, float64
 	// Wait for the first byte
 	startWaitTFB := time.Now()
 	var serviceResponseTTB time.Duration
-	firstByte := make([]byte,1)
+	firstByte := make([]byte, 1)
 	nbytes, err = conn.Read(firstByte)
 	nTotalBytes += uint64(nbytes)
 	allBytes = append(allBytes, firstByte...)

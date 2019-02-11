@@ -1,2 +1,9 @@
+# Build system specific ignores.
+/.cover.out
+.coverage
 .idea
-node_modules
+/assets/generated
+/assets/bindata.go
+/bin
+/release
+/tools/src
