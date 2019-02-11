@@ -576,8 +576,9 @@ func Assets() error {
 		return err
 	}
 
-	err := sh.RunV("go-bindata", "-pkg=assets", "-o", "bindata.go", "-ignore=bindata.go",
-		"-ignore=.*.map$", "-ignore=\\.gitkeep", "-prefix=assets/generated", ".")
+	err := sh.RunV("go-bindata", "-pkg=assets", "-o", "bindata.go", "-ignore=bindata\\.go",
+		"-ignore=assets\\.go",
+		"-ignore=.*.map$", "-ignore=\\.gitkeep", "-ignore=\\.gitignore", "-prefix=assets/generated", ".")
 	if err != nil {
 		return err
 	}
