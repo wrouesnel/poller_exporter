@@ -19,36 +19,31 @@ password: testpass
 tls_cert: cert.crt
 tls_key: key.pem
 
-poll_frequency: 999s
-ping_timeout: 111s
+global_host_config:
+  ping_timeout: 111s
+  ping_disable: false
+  ping_count: 44
+  poll_interval: 999s
 
-timeout: 222s
-
-max_bytes: 1242
-
-ping_disable: false
-ping_count: 44
+global_poller_config:
+  timeout: 222s
+  max_bytes: 1242
 
 hosts:
 - hostname: test.host
-  ping_count: 21
+  host_config:
+    ping_count: 21
   basic_checks:
   - name: example-A
     protocol: tcp
     port: 80
-  - name: example-A
-    protocol: udp
-    port: 91
-    timeout: 1211s
-  - name: example-A
-    protocol: udp
-    port: 92
-    timeout: 1212s
-  - name: example-A
+  http_checks:
+  - name: example-HTTP
     protocol: tcp
-    port: 93
-    timeout: 1213s
-    use_ssl: true
+    port: 80
+    verb: GET
+    url: http://sijwiuefhuiw
+    response: OK
 `
 
 const numHosts = 1
@@ -58,41 +53,32 @@ var expectedConfig = PollerExporterConfig{
 	BasicAuthPassword:  "testpass",
 	TLSCertificatePath: "cert.crt",
 	TLSKeyPath:         "key.pem",
-	PollFrequency:      Duration(999 * time.Second),
-	PingTimeout:        Duration(111 * time.Second),
-	Timeout:            Duration(222 * time.Second),
-	MaxBytes:           1242,
-	PingDisable:        false,
-	PingCount:          44,
+	GlobalHostConfig: &HostCommonConfig{
+		PollInterval:       Duration(999 * time.Second),
+		PingTimeout:        Duration(111 * time.Second),
+		PingDisable:        false,
+		PingCount:          44,
+	},
+	GlobalPollerConfig: &PollerCommonConfig{
+		Timeout:            Duration(222 * time.Second),
+		MaxBytes:           1242,
+	},
 	Hosts: []HostConfig{
 		{
 			Hostname:     "test.host",
-			PollInterval: 999,   // should be same as global
-			PingDisable:  false, // same as global
-			PingTimeout:  111,   // same as global
-			PingCount:    21,
+			PollerConfig: nil,
+			HostConfig: &HostCommonConfig{
+				PollInterval: Duration(999 * time.Second),   // should be same as global
+				PingDisable:  false, // same as global
+				PingTimeout:  111,   // same as global
+				PingCount:    21,
+			},
 			BasicChecks: []*BasicServiceConfig{
 				{
 					Name:     "example-A",
 					Protocol: "tcp",
 					Port:     80,
-				},
-				{
-					Name:     "example-A",
-					Protocol: "udp",
-					Port:     91,
-					Timeout:  1211,
-				},
-				{
-					Name:    "example-A",
-					Port:    92,
-					Timeout: 1212,
-				},
-				{
-					Name:    "example-A",
-					Port:    93,
-					Timeout: 1213,
-					UseSSL:  true,
+					Timeout:  Duration(222 * time.Second),
 				},
 			},
 			ChallengeResponseChecks: []*ChallengeResponseConfig{},

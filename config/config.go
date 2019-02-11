@@ -4,11 +4,9 @@ package config
 
 import (
 	//"github.com/prometheus/client_golang/prometheus"
-	"io/ioutil"
-	"time"
-
 	. "github.com/prometheus/common/model"
 	"gopkg.in/yaml.v2"
+	"io/ioutil"
 
 	//"errors"
 	//"strconv"
@@ -16,32 +14,9 @@ import (
 	"strings"
 )
 
-var (
-	DefaultConfig PollerExporterConfig = PollerExporterConfig{
-		PollFrequency: Duration(30 * time.Second),
-	}
-
-	DefaultHostConfig HostConfig = HostConfig{
-		PollInterval: DefaultConfig.PollFrequency,
-	}
-
-	DefaultBasicServiceConfig = BasicServiceConfig{
-		Protocol: "tcp",
-		//MinimumFailures: 1,
-	}
-
-	DefaultChallengeResponseServiceConfig = ChallengeResponseConfig{
-		BasicServiceConfig: DefaultBasicServiceConfig,
-	}
-
-	DefaultHTTPServiceConfig = HTTPServiceConfig{
-		ChallengeResponseConfig: DefaultChallengeResponseServiceConfig,
-	}
-)
-
 func Load(s string) (*PollerExporterConfig, error) {
 	cfg := new(PollerExporterConfig)
-	*cfg = DefaultConfig
+	//*cfg = DefaultConfig
 
 	// Important: we treat the yaml file as a big list, and unmarshal to our
 	// big list here.
@@ -66,6 +41,20 @@ func Save(cfg *PollerExporterConfig) ([]byte, error) {
 	return out, err
 }
 
+// HostCommonConfig encapculates the common host configuration options
+type HostCommonConfig struct {
+	PollInterval Duration `yaml:"poll_interval,omitempty"` // Default polling frequency for hosts
+	PingDisable  bool     `yaml:"disable_ping,omitempty"`  // Disable ping checks by default
+	PingTimeout  Duration `yaml:"ping_timeout,omitempty"`  // Default ping time out for hosts
+	PingCount    uint64   `yaml:"ping_count,omitempty"`    // Number of pings to send
+}
+
+// PollerCommonConfig is the set of configuration which is common to all pollers
+type PollerCommonConfig struct {
+	Timeout  Duration `yaml:"timeout,omitempty"`   // Default service IO timeout
+	MaxBytes uint64   `yaml:"max_bytes,omitempty"` // Default maximum bytes to read from services
+}
+
 type PollerExporterConfig struct {
 	BasicAuthUsername string `yaml:"username,omitempty"` // If set, enables basic auth
 	BasicAuthPassword string `yaml:"password,omitempty"` // If set, enables basic auth (must have a username)
@@ -73,12 +62,8 @@ type PollerExporterConfig struct {
 	TLSCertificatePath string `yaml:"tls_cert,omitempty"` // Path to TLS certificate. Enables TLS if specified.
 	TLSKeyPath         string `yaml:"tls_key,omitempty"`  // Path to TLS key file. Enables TLS if specified.
 
-	PollFrequency Duration `yaml:"poll_frequency,omitempty"` // Default polling frequency for hosts
-	PingTimeout   Duration `yaml:"ping_timeout,omitempty"`   // Default ping time out for hosts
-	Timeout       Duration `yaml:"timeout,omitempty"`        // Default service IO timeout
-	MaxBytes      uint64   `yaml:"max_bytes,omitempty"`      // Default maximum bytes to read from services
-	PingDisable   bool     `yaml:"disable_ping,omitempty"`   // Disable ping checks by default
-	PingCount     uint64   `yaml:"ping_count,omitempty"`     // Number of pings to send
+	GlobalHostConfig   *HostCommonConfig   `yaml:"global_host_config,omitempty"`
+	GlobalPollerConfig *PollerCommonConfig `yaml:"global_poller_config,omitempty"`
 
 	Hosts []HostConfig `yaml:"hosts"` // List of hosts which are to be polled
 
@@ -87,40 +72,26 @@ type PollerExporterConfig struct {
 	OriginalConfig string // Original config file contents
 }
 
+// UnmarshalYAML implements the yaml.Unmarshaller interface.
+// For a PollerExporterConfig this interface actually handles the entire unmarshalling so that
+// global configuration can be correctly propagated.
 func (c *PollerExporterConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*c = DefaultConfig
-
+	// Do a natural unmarshal first
 	type plain PollerExporterConfig
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
 
-	// Propagate host defaults
-	DefaultHostConfig.PollInterval = c.PollFrequency
-	DefaultHostConfig.PingTimeout = c.PingTimeout
-	DefaultHostConfig.PingDisable = c.PingDisable
-	DefaultHostConfig.PingCount = c.PingCount
-
-	// Propagate service defaults
-	DefaultBasicServiceConfig.Timeout = c.Timeout
-	DefaultChallengeResponseServiceConfig.MaxBytes = c.MaxBytes
-	DefaultHTTPServiceConfig.MaxBytes = c.MaxBytes
-
-	// HACK: Double unmarshal so host config gets set defaults
-	if err := unmarshal((*plain)(c)); err != nil {
-		return err
-	}
 	return checkOverflow(c.XXX, "")
 }
 
 // Defines a host which we want to find service information about.
 // Hosts export DNS checks.
 type HostConfig struct {
-	Hostname     string   `yaml:"hostname"`                 // Host or IP to contact
-	PollInterval Duration `yaml:"poll_frequency,omitempty"` // Frequency to poll this specific host
-	PingDisable  bool     `yaml:"disable_ping,omitempty"`   // Disable ping checks for this host
-	PingTimeout  Duration `yaml:"ping_timeout,omitempty"`   // Maximum ping timeout
-	PingCount    uint64   `yaml:"ping_count,omitempty"`     // Number of pings to send each poll
+	HostConfig   *HostCommonConfig   `yaml:"host_config,omitempty"`
+	PollerConfig *PollerCommonConfig `yaml:"poller_config,omitempty"`
+
+	Hostname string `yaml:"hostname"` // Host or IP to contact
 
 	BasicChecks             []*BasicServiceConfig      `yaml:"basic_checks,omitempty"`
 	ChallengeResponseChecks []*ChallengeResponseConfig `yaml:"challenge_response_checks,omitempty"`
@@ -130,8 +101,6 @@ type HostConfig struct {
 }
 
 func (c *HostConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*c = DefaultHostConfig
-
 	type plain HostConfig
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
@@ -141,34 +110,35 @@ func (c *HostConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // BasicServiceConfig configures a simple port check of a service
 type BasicServiceConfig struct {
-	Name     string   `yaml:"name"`              // Name of the service
-	Protocol string   `yaml:"proto,omitempty"`   // TCP or UDP
-	Port     uint64   `yaml:"port"`              // Port number of the service
-	Timeout  Duration `yaml:"timeout,omitempty"` // Number of seconds to wait for response
-	UseSSL   bool     `yaml:"ssl,omitempty"`     // The service uses SSL
+	Name     string   `yaml:"name"`               // Name of the service
+	Protocol string   `yaml:"protocol,omitempty"` // TCP or UDP
+	Port     uint64   `yaml:"port"`               // Port number of the service
+	Timeout  Duration `yaml:"timeout,omitempty"`  // Number of seconds to wait for response
+	UseSSL   bool     `yaml:"ssl,omitempty"`      // The service uses SSL
 	//MinimumFailures uint64		`yaml:"minimum_failures,omitempty` // Minimum number of failures before marking servie as down
+	XXX map[string]interface{} `yaml:",omitempty"` // Catch any unknown flags.
 }
 
 // Copy produces a distinct memory copy of the struct
-func (this *BasicServiceConfig) Copy() *BasicServiceConfig {
+func (bsc *BasicServiceConfig) Copy() *BasicServiceConfig {
 	c := &BasicServiceConfig{}
-	c.Name = this.Name
-	c.Protocol = this.Protocol
-	c.Port = this.Port
-	c.Timeout = this.Timeout
-	c.UseSSL = this.UseSSL
+	c.Name = bsc.Name
+	c.Protocol = bsc.Protocol
+	c.Port = bsc.Port
+	c.Timeout = bsc.Timeout
+	c.UseSSL = bsc.UseSSL
 	return c
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface
-func (this *BasicServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (bsc *BasicServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// Prevent recursively calling unmarshal
-	*this = *DefaultBasicServiceConfig.Copy()
 	type plain BasicServiceConfig
-	if err := unmarshal((*plain)(this)); err != nil {
+	if err := unmarshal((*plain)(bsc)); err != nil {
 		return err
 	}
 
+	checkOverflow(bsc.XXX, bsc.Name)
 	return nil
 }
 
@@ -181,12 +151,13 @@ type ChallengeResponseConfig struct {
 	MaxBytes           uint64  `yaml:"max_bytes,omitempty"`   // Maximum number of bytes to read while looking for the response regex. 0 means read until connection closes.
 }
 
-func (this *ChallengeResponseConfig) Copy() *ChallengeResponseConfig {
+func (crpc *ChallengeResponseConfig) Copy() *ChallengeResponseConfig {
 	c := &ChallengeResponseConfig{}
-	c.BasicServiceConfig = *DefaultChallengeResponseServiceConfig.BasicServiceConfig.Copy()
-	c.ChallengeLiteral = this.ChallengeLiteral.Copy()
-	c.ResponseLiteral = this.ResponseLiteral.Copy()
-	c.MaxBytes = this.MaxBytes
+	c.BasicServiceConfig = *crpc.BasicServiceConfig.Copy()
+	c.ChallengeLiteral = crpc.ChallengeLiteral.Copy()
+	c.ResponseRegex = crpc.ResponseRegex.Copy()
+	c.ResponseLiteral = crpc.ResponseLiteral.Copy()
+	c.MaxBytes = crpc.MaxBytes
 	return c
 }
 
@@ -199,19 +170,28 @@ func (r ChallengeResponseConfigValidationError) Error() string {
 	return fmt.Sprintln("validation: requires at least 1 of response_re or response:", r.ServiceDescription)
 }
 
-func (this *ChallengeResponseConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	// Prevent recursively calling unmarshal
-	*this = *DefaultChallengeResponseServiceConfig.Copy()
+func (crpc *ChallengeResponseConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	bsc := &BasicServiceConfig{}
 
-	type plain ChallengeResponseConfig
-	if err := unmarshal((*plain)(this)); err != nil {
+	type plain1 BasicServiceConfig
+	if err := unmarshal((*plain1)(bsc)); err != nil {
 		return err
 	}
 
-	// Validate the challenge literal
-	if this.ResponseLiteral == nil && this.ResponseRegex == nil {
-		return &ChallengeResponseConfigValidationError{this.Name}
+	type plain ChallengeResponseConfig
+	if err := unmarshal((*plain)(crpc)); err != nil {
+		return err
 	}
+
+	// Set the basic service config in
+	crpc.BasicServiceConfig = *bsc
+
+	// Validate the challenge literal
+	if crpc.ResponseLiteral == nil && crpc.ResponseRegex == nil {
+		return &ChallengeResponseConfigValidationError{crpc.Name}
+	}
+
+	checkOverflow(crpc.XXX, crpc.Name)
 
 	return nil
 }
@@ -228,15 +208,38 @@ type HTTPServiceConfig struct {
 	Password                string          `yaml:"password,omitempty"`       // Password for HTTP basic auth
 }
 
+// Copy makes a memory independent copy, safe for use with channels
+func (hsc *HTTPServiceConfig) Copy() *HTTPServiceConfig {
+	c := &HTTPServiceConfig{}
+	c.ChallengeResponseConfig = *hsc.ChallengeResponseConfig.Copy()
+	c.Verb = hsc.Verb
+	c.Url = hsc.Url.Copy()
+	c.SuccessStatuses = hsc.SuccessStatuses.Copy()
+	c.BasicAuth = hsc.BasicAuth
+	c.Username = hsc.Username
+	c.Password = hsc.Password
+	return c
+}
+
 // UnmarshalYAML implements yaml.Unmarshaler
-func (this *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*this = DefaultHTTPServiceConfig
+func (hsc *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	bsc := &ChallengeResponseConfig{}
+
+	type plain1 ChallengeResponseConfig
+	if err := unmarshal((*plain1)(bsc)); err != nil {
+		return err
+	}
 
 	type plain HTTPServiceConfig
 
-	if err := unmarshal((*plain)(this)); err != nil {
+	if err := unmarshal((*plain)(hsc)); err != nil {
 		return err
 	}
+
+	// Set the challenge response component
+	hsc.ChallengeResponseConfig = *bsc
+
+	checkOverflow(hsc.XXX, hsc.Name)
 
 	return nil
 }

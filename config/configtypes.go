@@ -49,6 +49,14 @@ type Regexp struct {
 	original string
 }
 
+// Copy creates a memory independent copy
+func (re *Regexp) Copy() *Regexp {
+	c := &Regexp{}
+	c.Regexp = *re.Regexp.Copy()
+	c.original = re.original
+	return c
+}
+
 // NewRegexp creates a new anchored Regexp and returns an error if the
 // passed-in regular expression does not compile.
 func NewRegexp(s string) (*Regexp, error) {
@@ -96,6 +104,27 @@ func (re *Regexp) MarshalYAML() (interface{}, error) {
 // URL is a custom URL type that allows validation at configuration load time.
 type URL struct {
 	*url.URL
+}
+
+// Copy makes a memory independent copy of this type
+func (u *URL) Copy() URL {
+	c := URL{}
+
+	if u.URL == nil {
+		return c
+	}
+
+	// Have an url, do this to get a direct copy of most of the fields...
+	*c.URL = *u.URL
+
+	// Special case userinfo handling
+	if u.URL.User == nil {
+		return c
+	}
+
+	c.URL.User = &url.Userinfo{}
+	*c.URL.User = *u.URL.User
+	return c
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface for URLs.
