@@ -8,13 +8,13 @@ disable_ping: false
 ping_count: 5
 
 hosts:
-  - hostname: localhost
+  - hostname: "google.com"
     http_checks:
-      - name: HTTP ssl test
+      - name: HTTP TLS Test
         proto: tcp
         ssl: true
         verb: GET
-        url: "http://php-shared-1:9100/metrics"
-        port: 4433
+        url: "https://google.com"
+        port: 443
         max_bytes: 50000
         success_status: 200 301
