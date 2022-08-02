@@ -1,14 +1,14 @@
 # Dockerfile for building the containerized poller_exporter
-FROM alpine:latest
-MAINTAINER William Rouesnel <w.rouesnel@gmail.com>
+FROM golang:1.18 AS build
+MAINTAINER William Rouesnel <wrouesnel@wrouesnel.com>
 EXPOSE 9115
 
-ENV GOPATH /go
-ENV APPPATH $GOPATH/src/github.com/wrouesnel/poller_exporter
-COPY . $APPPATH
+RUN go build -o poller_exporter ./
 
-RUN apk add --update -t build-deps go git mercurial libc-dev gcc libgcc \
-    && cd $APPPATH && go get -d && go build -o /poller_exporter \
-    && apk del --purge build-deps && rm -rf $GOPATH
+FROM scratch
+
+ENV PATH=/bin
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs
+COPY --from=build ./poller_exporter
     
 ENTRYPOINT ["/poller_exporter"]

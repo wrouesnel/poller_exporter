@@ -1,0 +1,17 @@
+[Unit]
+Description=Prometheus blackbox monitoring exporter
+After=network.target
+
+StartLimitBurst=5
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/poller_exporter -collector.config /etc/poller_exporter.yml
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
