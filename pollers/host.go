@@ -1,13 +1,13 @@
 package pollers
 
 import (
+	"go.uber.org/zap"
 	"net"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
-	"github.com/wrouesnel/poller_exporter/pollers/ping"
 	config "github.com/wrouesnel/poller_exporter/config"
+	"github.com/wrouesnel/poller_exporter/pollers/ping"
 	"math"
 )
 
@@ -24,17 +24,17 @@ type Host struct {
 	LastPollTime  prometheus.Gauge   // Time of last poll
 	Resolvable    prometheus.Gauge   // Is the hostname resolvable (IP is always true)
 	PathReachable prometheus.Gauge   // Is the host IP routable?
-	PingLatency       prometheus.Gauge   // Latency to contact host - NaN if unavailable
+	PingLatency   prometheus.Gauge   // Latency to contact host - NaN if unavailable
 
 	// Tally metrics (more accurate but harder)
-	ResolvableCount *prometheus.CounterVec	// success/failure count
-	ReachableCount *prometheus.CounterVec	// success/failure count
-	PingResultCount *prometheus.CounterVec		// cumulative count of pings
-	LatencyCount  prometheus.Counter		// cumulative latency from successful polls
+	ResolvableCount *prometheus.CounterVec // success/failure count
+	ReachableCount  *prometheus.CounterVec // success/failure count
+	PingResultCount *prometheus.CounterVec // cumulative count of pings
+	LatencyCount    prometheus.Counter     // cumulative latency from successful polls
 
-	lastPoll time.Time     // Time we last polled
-	ping_status Status	// Last known ping result
-	ping_latency     time.Duration // Last known ping time
+	lastPoll     time.Time     // Time we last polled
+	ping_status  Status        // Last known ping result
+	ping_latency time.Duration // Last known ping time
 
 	config.HostConfig
 }
@@ -98,7 +98,7 @@ func NewHost(opts config.HostConfig) *Host {
 			},
 			[]string{"result"},
 		),
-		PingResultCount : prometheus.NewCounterVec(
+		PingResultCount: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace:   Namespace,
 				Subsystem:   "host",
@@ -118,13 +118,13 @@ func NewHost(opts config.HostConfig) *Host {
 			},
 		),
 
-		ping_status: UNKNOWN,
+		ping_status:  PollStatusUnknown,
 		ping_latency: time.Duration(math.MaxInt64),
 	}
 	newHost.HostConfig = opts
 
 	// Default everything to NaN since we don't know them
-	newHost.NumPolls.Set(0) // Except this one.
+	// newHost.NumPolls.Set(0) // Don't need to reset the counter
 	newHost.Resolvable.Set(math.NaN())
 	newHost.PathReachable.Set(math.NaN())
 	newHost.PingLatency.Set(math.NaN())
@@ -195,9 +195,9 @@ func (s *Host) Collect(ch chan<- prometheus.Metric) {
 	s.PathReachable.Collect(ch)
 
 	//Latency
-	if s.ping_status == UNKNOWN {
+	if s.ping_status == PollStatusUnknown {
 		s.PingLatency.Set(math.NaN())
-	} else if s.ping_status == FAILED {
+	} else if s.ping_status == PollStatusFailed {
 		s.PingLatency.Set(math.Inf(1))
 	} else {
 		s.PingLatency.Set(float64(s.ping_latency / time.Microsecond))
@@ -234,13 +234,13 @@ func (s *Host) Poll(limiter *Limiter, hostQueue chan<- *Host) {
 		ipAddrs, err := net.LookupHost(s.Hostname)
 		if err != nil {
 			s.Resolvable.Set(0)
-			s.ResolvableCount.WithLabelValues(LBL_FAIL).Inc()
+			s.ResolvableCount.WithLabelValues(MetricLabelFailed).Inc()
 			return
 		}
 		s.IP = ipAddrs[0]
 		s.Resolvable.Set(1)
-		s.ResolvableCount.WithLabelValues(LBL_SUCCESS).Inc()
-		s.log().Debugln("Resolved hostname")
+		s.ResolvableCount.WithLabelValues(MetricLabelSuccess).Inc()
+		s.log().Debug("Resolved hostname")
 
 		// Can the host be reached by ICMP?
 		if !s.PingDisable {
@@ -249,7 +249,7 @@ func (s *Host) Poll(limiter *Limiter, hostQueue chan<- *Host) {
 
 		// Call poller methods
 		for _, poller := range s.Pollers {
-			s.log().Debugln("Invoking Poller:", poller.Name())
+			s.log().Debug("Invoking Poller", zap.String("poller_name", poller.Name()))
 			poller.Poll()
 		}
 	}()
@@ -258,11 +258,11 @@ func (s *Host) Poll(limiter *Limiter, hostQueue chan<- *Host) {
 	if hostQueue != nil {
 		timeToNext := s.NextPoll()
 		if timeToNext <= 0 {
-			s.log().Debugln("Host overdue, queuing immediately:", timeToNext)
+			s.log().Debug("Host overdue, queuing immediately", zap.Duration("time_to_next", timeToNext))
 		} else {
-			s.log().Debugln("Host pending, waiting to requeue:", timeToNext)
-			<- time.After(timeToNext)
-			s.log().Debugln("Poll time finished, requeuing")
+			s.log().Debug("Host pending, waiting to requeue", zap.Duration("time_to_next", timeToNext))
+			<-time.After(timeToNext)
+			s.log().Debug("Poll time finished, requeuing")
 		}
 		hostQueue <- s
 	}
@@ -275,30 +275,30 @@ func (s *Host) doPing() {
 	// reasons it could happen and better ways to do it too.
 	var ping_success bool
 	for i := uint64(0); i < s.PingCount; i++ {
-		s.log().Debugln("Pinging", s.Hostname)
+		s.log().Debug("Pinging")
 		ok, latency := ping.Ping(net.ParseIP(s.IP), time.Duration(s.PingTimeout))
 
 		if ok == true {
 			ping_success = ok
 			s.ping_latency = latency
 			s.LatencyCount.Add(float64(latency) / float64(time.Second))
-			s.PingResultCount.WithLabelValues(LBL_SUCCESS).Inc()
+			s.PingResultCount.WithLabelValues(MetricLabelSuccess).Inc()
 			break
 		}
-		s.PingResultCount.WithLabelValues(LBL_FAIL).Inc()
+		s.PingResultCount.WithLabelValues(MetricLabelFailed).Inc()
 	}
 
 	if ping_success {
-		s.log().Infoln("SUCCESS ICMP ECHO", s.ping_latency)
-		s.ping_status = SUCCESS
-		s.ReachableCount.WithLabelValues(LBL_SUCCESS).Inc()
+		s.log().Info("PollStatusSuccess ICMP ECHO", zap.Duration("ping_latency", s.ping_latency))
+		s.ping_status = PollStatusSuccess
+		s.ReachableCount.WithLabelValues(MetricLabelSuccess).Inc()
 	} else {
-		s.log().Infoln("FAILED ICMP ECHO", s.PingCount, "pings")
-		s.ping_status = FAILED
-		s.ReachableCount.WithLabelValues(LBL_FAIL).Inc()
+		s.log().Info("PollStatusFailed ICMP ECHO", zap.Uint64("pings", s.PingCount))
+		s.ping_status = PollStatusFailed
+		s.ReachableCount.WithLabelValues(MetricLabelFailed).Inc()
 	}
 }
 
-func (s *Host) log() log.Logger {
-	return log.With("host", s.Hostname).With("ip", s.IP)
+func (s *Host) log() *zap.Logger {
+	return zap.L().With(zap.String("host", s.Hostname), zap.String("ip", s.IP))
 }

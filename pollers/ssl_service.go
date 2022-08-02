@@ -3,19 +3,19 @@ package pollers
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"go.uber.org/zap"
 	"net"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 // An SSL protected service. This can be any type of service, and simply adds
 // certificate metrics to the base service. As a result it is not directly
 // instantiated.
 type SSLService struct {
-	SSLNotAfter  *prometheus.GaugeVec // Epoch time the SSL certificate expires
-	SSLNotBefore *prometheus.GaugeVec // Epoch time the SSL certificate is not valid before
-	SSLValid     *prometheus.GaugeVec // Whether the certificate validates to this host
+	SSLNotAfter   *prometheus.GaugeVec   // Epoch time the SSL certificate expires
+	SSLNotBefore  *prometheus.GaugeVec   // Epoch time the SSL certificate is not valid before
+	SSLValid      *prometheus.GaugeVec   // Whether the certificate validates to this host
 	SSLValidCount *prometheus.CounterVec // Cumulative count of SSL validations
 	Poller
 }
@@ -46,8 +46,10 @@ func (s *SSLService) Collect(ch chan<- prometheus.Metric) {
 func (s *SSLService) Poll() {
 	conn := s.doPoll()
 	if conn != nil {
-		log.Infoln("Success", s.Host().Hostname, s.Port(), s.Name())
-		conn.Close()
+		s.log().Info("Success")
+		if err := conn.Close(); err != nil {
+			s.log().Info("Error closing connection", zap.String("error", err.Error()))
+		}
 	}
 
 }
@@ -84,10 +86,10 @@ func (s *SSLService) scrapeTLS(conn net.Conn) net.Conn {
 
 	if _, err := hostcert.Verify(opts); err != nil {
 		s.SSLValid.WithLabelValues(hostcert.Subject.CommonName).Set(0)
-		s.SSLValidCount.WithLabelValues(LBL_FAIL).Inc()
+		s.SSLValidCount.WithLabelValues(MetricLabelFailed).Inc()
 	} else {
 		s.SSLValid.WithLabelValues(hostcert.Subject.CommonName).Set(1)
-		s.SSLValidCount.WithLabelValues(LBL_SUCCESS).Inc()
+		s.SSLValidCount.WithLabelValues(MetricLabelSuccess).Inc()
 	}
 
 	s.SSLNotAfter.WithLabelValues(hostcert.Subject.CommonName).Set(float64(hostcert.NotAfter.Unix()))

@@ -1,29 +1,31 @@
 // This is similar to the main Prometheus scheme, because hey, it works pretty well.
 
 package config
+
 import (
+	"github.com/prometheus/common/model"
+	"gopkg.in/yaml.v3"
+
 	//"github.com/prometheus/client_golang/prometheus"
 	"io/ioutil"
-	"gopkg.in/yaml.v2"
-	"time"
-	. "github.com/prometheus/common/model"
 	"regexp"
+	"time"
 	//"errors"
 	//"strconv"
 	"fmt"
-	"strings"
-	"net/url"
-	//"github.com/prometheus/common/log"
-	//"github.com/davecgh/go-spew/spew"
-	//"github.com/prometheus/common/log"
-	"strconv"
-	"sort"
 	"net"
+	"net/url"
+	"sort"
+	"strings"
+	//"go.uber.org/zap"
+	//"github.com/davecgh/go-spew/spew"
+	//"go.uber.org/zap"
+	"strconv"
 )
 
 var (
 	DefaultConfig Config = Config{
-		PollFrequency: Duration(30 * time.Second),
+		PollFrequency: model.Duration(30 * time.Second),
 	}
 
 	DefaultHostConfig HostConfig = HostConfig{
@@ -72,24 +74,24 @@ func Save(cfg *Config) ([]byte, error) {
 }
 
 type Config struct {
-	BasicAuthUsername string `yaml:"username,omitempty"`	// If set, enables basic auth
+	BasicAuthUsername string `yaml:"username,omitempty"` // If set, enables basic auth
 	BasicAuthPassword string `yaml:"password,omitempty"` // If set, enables basic auth (must have a username)
 
 	TLSCertificatePath string `yaml:"tls_cert,omitempty"` // Path to TLS certificate. Enables TLS if specified.
-	TLSKeyPath string `yaml:"tls_key,omitempty"` // Path to TLS key file. Enables TLS if specified.
+	TLSKeyPath         string `yaml:"tls_key,omitempty"`  // Path to TLS key file. Enables TLS if specified.
 
-	PollFrequency Duration `yaml:"poll_frequency,omitempty"` // Default polling frequency for hosts
-	PingTimeout	Duration `yaml:"ping_timeout,omitempty"` // Default ping time out for hosts
-	Timeout Duration `yaml:"timeout,omitempty"`	// Default service IO timeout
-	MaxBytes uint64		`yaml:"max_bytes,omitempty"` // Default maximum bytes to read from services
-	PingDisable bool `yaml:"disable_ping,omitempty"`	// Disable ping checks by default
-	PingCount uint64 `yaml:"ping_count,omitempty"`	// Number of pings to send
+	PollFrequency model.Duration `yaml:"poll_frequency,omitempty"` // Default polling frequency for hosts
+	PingTimeout   model.Duration `yaml:"ping_timeout,omitempty"`   // Default ping time out for hosts
+	Timeout       model.Duration `yaml:"timeout,omitempty"`        // Default service IO timeout
+	MaxBytes      uint64         `yaml:"max_bytes,omitempty"`      // Default maximum bytes to read from services
+	PingDisable   bool           `yaml:"disable_ping,omitempty"`   // Disable ping checks by default
+	PingCount     uint64         `yaml:"ping_count,omitempty"`     // Number of pings to send
 
-	Hosts []HostConfig	`yaml:"hosts"`// List of hosts which are to be polled
+	Hosts []HostConfig `yaml:"hosts"` // List of hosts which are to be polled
 
-	XXX map[string]interface{} `yaml:",omitempty"`	// Catch any unknown flags.
+	XXX map[string]interface{} `yaml:",omitempty"` // Catch any unknown flags.
 
-	OriginalConfig string	// Original config file contents
+	OriginalConfig string // Original config file contents
 }
 
 func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -145,17 +147,17 @@ func (this IPNetwork) MarshalYAML() (interface{}, error) {
 // Defines a host which we want to find service information about.
 // Hosts export DNS checks.
 type HostConfig struct {
-	Hostname string		`yaml:"hostname"`	// Host or IP to contact
-	PollFrequency Duration `yaml:"poll_frequency,omitempty"` // Frequency to poll this specific host
-	PingDisable bool `yaml:"disable_ping,omitempty"`	// Disable ping checks for this host
-	PingTimeout Duration `yaml:"ping_timeout,omitempty"` // Maximum ping timeout
-	PingCount uint64 `yaml:"ping_count,omitempty"`	// Number of pings to send each poll
+	Hostname      string         `yaml:"hostname"`                 // Host or IP to contact
+	PollFrequency model.Duration `yaml:"poll_frequency,omitempty"` // Frequency to poll this specific host
+	PingDisable   bool           `yaml:"disable_ping,omitempty"`   // Disable ping checks for this host
+	PingTimeout   model.Duration `yaml:"ping_timeout,omitempty"`   // Maximum ping timeout
+	PingCount     uint64         `yaml:"ping_count,omitempty"`     // Number of pings to send each poll
 
-	BasicChecks []*BasicServiceConfig	`yaml:"basic_checks,omitempty"`
-	ChallengeResponseChecks []*ChallengeResponseConfig	`yaml:"challenge_response_checks,omitempty"`
-	HTTPChecks []*HTTPServiceConfig	`yaml:"http_checks,omitempty"`
+	BasicChecks             []*BasicServiceConfig      `yaml:"basic_checks,omitempty"`
+	ChallengeResponseChecks []*ChallengeResponseConfig `yaml:"challenge_response_checks,omitempty"`
+	HTTPChecks              []*HTTPServiceConfig       `yaml:"http_checks,omitempty"`
 
-	XXX map[string]interface{} `yaml:",omitempty"`	// Catch any unknown flags.
+	XXX map[string]interface{} `yaml:",omitempty"` // Catch any unknown flags.
 }
 
 func (c *HostConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -170,11 +172,11 @@ func (c *HostConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // A basic network service.
 type BasicServiceConfig struct {
-	Name		string			`yaml:"name"`		// Name of the service
-	Protocol	string			`yaml:"proto,omitempty"`		// TCP or UDP
-	Port		uint64			`yaml:"port"`		// Port number of the service
-	Timeout		Duration		`yaml:"timeout,omitempty"`		// Number of seconds to wait for response
-	UseSSL		bool			`yaml:"ssl,omitempty"`		// The service uses SSL
+	Name     string         `yaml:"name"`              // Name of the service
+	Protocol string         `yaml:"proto,omitempty"`   // TCP or UDP
+	Port     uint64         `yaml:"port"`              // Port number of the service
+	Timeout  model.Duration `yaml:"timeout,omitempty"` // Number of seconds to wait for response
+	UseSSL   bool           `yaml:"ssl,omitempty"`     // The service uses SSL
 	//MinimumFailures uint64		`yaml:"minimum_failures,omitempty` // Minimum number of failures before marking servie as down
 }
 
@@ -196,16 +198,17 @@ func (this *BasicServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error)
 // Similar to a banner check, but first sends the specified data befoe looking
 // for a response.
 type ChallengeResponseConfig struct {
-	BasicServiceConfig			`yaml:",inline,omitempty"`
-	ChallengeLiteral *Bytes		`yaml:"challenge,omitempty"`
-	ResponseRegex	*Regexp		`yaml:"response_re,omitempty"`// Regex that must match
-	ResponseLiteral *Bytes		`yaml:"response,omitempty"`// Literal string that must match
-	MaxBytes uint64				`yaml:"max_bytes,omitempty"` // Maximum number of bytes to read while looking for the response regex. 0 means read until connection closes.
+	BasicServiceConfig `yaml:",inline,omitempty"`
+	ChallengeLiteral   *Bytes  `yaml:"challenge,omitempty"`
+	ResponseRegex      *Regexp `yaml:"response_re,omitempty"` // Regex that must match
+	ResponseLiteral    *Bytes  `yaml:"response,omitempty"`    // Literal string that must match
+	MaxBytes           uint64  `yaml:"max_bytes,omitempty"`   // Maximum number of bytes to read while looking for the response regex. 0 means read until connection closes.
 }
 
 type ChallengeResponseConfigValidationError struct {
 	ServiceDescription string
 }
+
 func (r ChallengeResponseConfigValidationError) Error() string {
 	return fmt.Sprintln("validation: requires at least 1 of response_re or response:", r.ServiceDescription)
 }
@@ -225,6 +228,7 @@ func (this *ChallengeResponseConfig) UnmarshalYAML(unmarshal func(interface{}) e
 // A range of HTTP status codes which can be specifid in YAML using human-friendly
 // ranging notation
 type HTTPStatusRange map[int]bool
+
 func (this *HTTPStatusRange) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	*this = make(HTTPStatusRange)
 	var ranges string
@@ -296,7 +300,7 @@ func (this HTTPStatusRange) MarshalYAML() (interface{}, error) {
 			if idx >= len(statusCodes) {
 				break
 			}
-			if statusCodes[idx] - prev != 1 {
+			if statusCodes[idx]-prev != 1 {
 				// Check if it's a single number
 				if statusCodes[idx-1] == start {
 					output = append(output, fmt.Sprintf("%d", start))
@@ -318,13 +322,13 @@ func (this HTTPStatusRange) MarshalYAML() (interface{}, error) {
 // An HTTP speaking service. Does not yet support being a proxy.
 // If UseSSL is not set but you request HTTPS, it'll fail.
 type HTTPServiceConfig struct {
-	ChallengeResponseConfig 	`yaml:",inline,omitempty"`
-	Verb	string		`yaml:"verb,omitempty"` // HTTP verb to use
-	Url		URL			`yaml:"url,omitempty"`	// HTTP request URL to send
-	SuccessStatuses HTTPStatusRange `yaml:"success_status,omitempty"` // List of status codes indicating success
-	BasicAuth bool		`yaml:"auth,omitempty"` // Use HTTP basic auth
-	Username string		`yaml:"username,omitempty"` // Username for HTTP basic auth
-	Password string 	`yaml:"password,omitempty"` // Password for HTTP basic auth
+	ChallengeResponseConfig `yaml:",inline,omitempty"`
+	Verb                    string          `yaml:"verb,omitempty"`           // HTTP verb to use
+	Url                     URL             `yaml:"url,omitempty"`            // HTTP request URL to send
+	SuccessStatuses         HTTPStatusRange `yaml:"success_status,omitempty"` // List of status codes indicating success
+	BasicAuth               bool            `yaml:"auth,omitempty"`           // Use HTTP basic auth
+	Username                string          `yaml:"username,omitempty"`       // Username for HTTP basic auth
+	Password                string          `yaml:"password,omitempty"`       // Password for HTTP basic auth
 }
 
 func (this *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -358,7 +362,7 @@ func (this *Bytes) MarshalYAML() (interface{}, error) {
 	if len(*this) != 0 {
 		return string(*this), nil
 	}
-	return nil,nil
+	return nil, nil
 }
 
 // Regexp encapsulates a regexp.Regexp and makes it YAML marshallable.

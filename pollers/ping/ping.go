@@ -2,6 +2,7 @@ package ping
 
 import (
 	"bytes"
+	"go.uber.org/zap"
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
@@ -9,8 +10,6 @@ import (
 	"os"
 	"sync"
 	"time"
-
-	"github.com/prometheus/common/log"
 )
 
 var (
@@ -36,6 +35,7 @@ func getICMPSequence() uint16 {
 // Sends a single ICMP echo to an IP and returns success and latency information.
 // Borrowed from BrianBrazil's blackbox exporter
 func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration) {
+	log := zap.L()
 	deadline := time.Now().Add(maxRTT)
 
 	var socket *icmp.PacketConn
@@ -45,12 +45,12 @@ func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration)
 	} else if isIPv6(ip) {
 		socket, err = icmp.ListenPacket("ip6:ipv6-icmp", "::")
 	} else {
-		log.Errorln("IP did not match any known types?")
+		log.Error("IP did not match any known types?")
 		return
 	}
 
 	if err != nil {
-		log.Errorf("Error listening to socket: %s", err)
+		log.Error("Error listening to socket", zap.Error(err))
 		return
 	}
 	defer socket.Close()
@@ -77,13 +77,13 @@ func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration)
 			},
 		}
 	} else {
-		log.Errorln("IP did not match any known types?")
+		log.Error("IP did not match any known types?")
 		return
 	}
 
 	wb, err := wm.Marshal(nil)
 	if err != nil {
-		log.Errorf("Error marshalling packet for %s: %s", ip.String(), err)
+		log.Error("Error marshalling packet", zap.String("ip_address", ip.String()), zap.Error(err))
 		return
 	}
 
@@ -93,7 +93,7 @@ func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration)
 	dst = &net.IPAddr{IP: ip}
 
 	if _, err := socket.WriteTo(wb, dst); err != nil {
-		log.Errorf("Error writing to socket for %s: %s", ip.String(), err)
+		log.Error("Error writing to socket", zap.String("ip_address", ip.String()), zap.Error(err))
 		return
 	}
 
@@ -103,29 +103,29 @@ func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration)
 	} else if isIPv6(ip) {
 		wm.Type = ipv6.ICMPTypeEchoReply
 	} else {
-		log.Errorln("IP did not match any known types?")
+		log.Error("IP did not match any known types?")
 		return
 	}
 
 	wb, err = wm.Marshal(nil)
 	if err != nil {
-		log.Errorf("Error marshalling packet for %s: %s", ip.String(), err)
+		log.Error("Error marshalling packet", zap.String("ip_address", ip.String()), zap.Error(err))
 		return
 	}
 
 	rb := make([]byte, 1500)
 	if err := socket.SetReadDeadline(deadline); err != nil {
-		log.Errorf("Error setting socket deadline for %s: %s", ip.String(), err)
+		log.Error("Error setting socket deadline", zap.String("ip_address", ip.String()), zap.Error(err))
 		return
 	}
 	for {
 		n, peer, err := socket.ReadFrom(rb)
 		if err != nil {
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-				log.Infof("Timeout reading from socket for %s: %s", ip.String(), err)
+				log.Info("Timeout reading from socket", zap.String("ip_address", ip.String()), zap.Error(err))
 				return
 			}
-			log.Errorf("Error reading from socket for %s: %s", ip.String(), err)
+			log.Error("Error reading from socket for", zap.String("ip_address", ip.String()), zap.Error(err))
 			continue
 		}
 		if peer.String() != ip.String() {
@@ -137,5 +137,4 @@ func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration)
 			return
 		}
 	}
-	return
 }
