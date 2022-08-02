@@ -9,10 +9,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap/zapcore"
 	"html/template"
+	"io/fs"
 	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/eknkc/amber"
@@ -49,7 +51,7 @@ var CLI struct {
 
 // MustCompile compiles the templates out of embed.FS
 func MustCompile(filename string) *template.Template {
-	amberTmpl, err := Assets.ReadFile(filename)
+	amberTmpl, err := Assets.ReadFile(strings.Join([]string{"web", filename}, "/"))
 	if err != nil {
 		panic(err)
 	}
@@ -115,7 +117,8 @@ func main() {
 			},
 		)) // Prometheus
 	// Static asset handling
-	router.Handler("GET", "/static/", http.FileServer(http.FS(Assets)))
+
+	router.Handler("GET", "/static/*filepath", http.FileServer(http.FS(Must[fs.FS](fs.Sub(Assets, "web")))))
 
 	var monitoredHosts []*pollers.Host
 	router.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -211,4 +214,11 @@ func main() {
 	<-webCtx.Done()
 
 	appLog.Info("Exiting normally")
+}
+
+func Must[T any](result T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return result
 }
