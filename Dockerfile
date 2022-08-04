@@ -5,17 +5,11 @@ FROM golang@sha256:1bbb02af44e5324a6eabe502b6a928d368977225c0255bc9aca4a734145f8
 MAINTAINER William Rouesnel <wrouesnel@wrouesnel.com>
 EXPOSE 9115
 
-ARG BUILDOS=linux
-ARG BUILDARCH=amd64
-ARG BUILDNAME=poller_exporter
-
 COPY ./ /workdir/
 WORKDIR /workdir
 
-RUN GOOS=$BUILDOS \
-    GOARCH=$BUILDARCH \
-    CGO_ENABLED=0 \
-    go build -a -o $BUILDNAME \
+RUN CGO_ENABLED=0 \
+    go build -a -o poller_exporter \
     -trimpath -ldflags '-buildid= -extldflags "-static"' \
     ./cmd/poller_exporter
 
@@ -25,9 +19,8 @@ MAINTAINER Will Rouesnel <wrouesnel@wrouesnel.com>
 
 ENV PATH=/bin
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs
+COPY --from=build /workdir/poller_exporter /bin/poller_exporter
+COPY ./poller_exporter.yml /poller_exporter.yml
 
-ARG BUILDNAME=poller_exporter
-ENV EXECUTABLE=$BUILDNAME
-COPY --from=build /workdir/$BUILDNAME /bin/$BUILDNAME
-
-ENTRYPOINT ["/bin/$EXECUTABLE"]
+ENTRYPOINT ["/bin/poller_exporter"]
+CMD ["--log-format=json"]

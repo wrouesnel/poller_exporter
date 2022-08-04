@@ -1,24 +1,38 @@
-[![Build Status](https://travis-ci.org/wrouesnel/poller_exporter.svg)](https://travis-ci.org/wrouesnel/poller_exporter)
+[![Build and Test](https://github.com/wrouesnel/poller_exporter/actions/workflows/integration.yml/badge.svg)](https://github.com/wrouesnel/poller_exporter/actions/workflows/integration.yml)
+[![Release](https://github.com/wrouesnel/poller_exporter/actions/workflows/release.yml/badge.svg)](https://github.com/wrouesnel/poller_exporter/actions/workflows/release.yml)
+[![Container Build](https://github.com/wrouesnel/poller_exporter/actions/workflows/container.yml/badge.svg)](https://github.com/wrouesnel/poller_exporter/actions/workflows/container.yml)
+[![Coverage Status](https://coveralls.io/repos/github/wrouesnel/poller_exporter/badge.svg?branch=main)](https://coveralls.io/github/wrouesnel/poller_exporter?branch=main)
 
 # Prometheus poller_exporter
 Blackbox service poller for Prometheus. It is intended
 to provide a detailed metrics endpoint, and also a usable HTTP interface for
 inspecting the state of a given hosts metrics.
 
-# Deployment
-This tool is intended to be deployed on all servers in your environment, and its
-configuration provised via a tool such as Ansible or a Kubernetes ConfigMap.
+# Getting Started
 
-The optimal configuration is a full mesh of related servers behind a network
-segment - i.e. within a cluster of servers it is best for each server to poll
-every other server to rapidly find connectivity issues.
+A prebuilt docker container is hosted on Github Packages:
+
+```bash
+docker run -it -p 9115:9115 -v /myconfig.yml:/poller_exporter.yml ghcr.io/wrouesnel/poller_exporter
+```
+
+Or you can build your own:
+```bash
+docker build -t poller_exporter .
+docker run -p 9115:9115 -v /myconfig.yml:/poller_exporter.yml
+```
 
 # Web UI
 
-The web UI will provide basic information about the configured pollers - this 
+The web UI will provide basic information about the configured pollers - this
 provides a degree of self-describing functionality.
 
+For production deployments use a tagged release, or better, the full hash.
+The docker containers default logging to JSON mode.
+
 # Configuration
+This tool is intended to be deployed on all servers in your environment, and its
+configuration provised via a tool such as Ansible or a Kubernetes ConfigMap.
 
 There are several types of checker, which internally simply represent logic
 layers of each previous checker. Checkers are configured against hosts.
@@ -61,13 +75,11 @@ solely used for the `Host:` header and query path.
 The HTTP check can be configured to parse a range of `success_status` codes
 which can be specified as a string-like `200-299,301,401`.
 
-# Deploying via Docker
+## Configuration Advice
 
-Docker deployment can be done with the following:
-```
-$ docker build -t poller_exporter .
-$ docker run -p 9115:9115 -v /myconfig.yml:/poller_exporter.yml
-```
+The optimal configuration is a full mesh of related servers behind a network
+segment - i.e. within a cluster of servers it is best for each server to poll
+every other server to rapidly find connectivity issues.
 
 # Hacking
 
