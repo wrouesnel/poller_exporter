@@ -6,6 +6,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/bits"
@@ -15,14 +16,16 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	archiver "github.com/mholt/archiver"
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 	"github.com/magefile/mage/target"
 
 	"github.com/integralist/go-findroot/find"
-	"github.com/mholt/archiver"
 	"github.com/pkg/errors"
 )
 
@@ -127,6 +130,15 @@ var platforms []Platform = []Platform{
 	{"freebsd", "amd64", ""},
 }
 
+// platformsLookup is the lookup map of the above list by <OS>/<Arch>.
+var platformsLookup map[string]Platform = func() map[string]Platform {
+	ret := make(map[string]Platform, len(platforms))
+	for _, platform := range platforms {
+		ret[platform.String()] = platform
+	}
+	return ret
+}()
+
 // productName can be overridden by environ product name.
 var productName = func() string {
 	if name := os.Getenv("PRODUCT_NAME"); name != "" {
@@ -174,6 +186,12 @@ var concurrency = func() int {
 		if err != nil {
 			panic(err)
 		}
+
+		// Ensure we always have at least 1 process
+		if int(pv) < 1 {
+			return 1
+		}
+
 		return int(pv)
 	}
 	return runtime.NumCPU()
@@ -195,7 +213,67 @@ func Log(args ...interface{}) {
 	}
 }
 
+var concurrencyQueue chan struct{}
+var concurrencyWg *sync.WaitGroup
+
+// concurrentRun calls a function while respecting concurrency limits, and
+// returns a promise-like function which will resolve to the value.
+func concurrentRun[T any](fn func() T) func() T {
+	concurrencyQueue <- struct{}{} // Acquire a job
+	concurrencyWg.Add(1)           // Ensure we can wait
+
+	rCh := make(chan T)
+	go func() {
+		rCh <- fn()
+		<-concurrencyQueue   // Release a job
+		concurrencyWg.Done() // Mark job finished
+	}()
+
+	return func() T {
+		return <-rCh
+	}
+}
+
+// waitResults accepts a map of operations and waits for them all to complete.
+func waitResults(m map[string]func() error) func() error {
+	type dispatch struct {
+		k string
+		v error
+	}
+
+	resultQueue := make(chan dispatch, len(m))
+	for k, fn := range m {
+		go func(k string, fn func() error) {
+			resultQueue <- dispatch{
+				k: k,
+				v: fn(),
+			}
+		}(k, fn)
+	}
+
+	return func() error {
+		buildError := false
+
+		for i := 0; i < len(m); i++ {
+			result := <-resultQueue
+			if result.v != nil {
+				buildError = true
+				fmt.Printf("Error: %s: %s\n", result.k, result.v)
+			}
+		}
+
+		if buildError {
+			return errParallelBuildFailed
+		}
+		return nil
+	}
+}
+
 func init() {
+	// Initialize concurrency queue
+	concurrencyQueue = make(chan struct{}, concurrency)
+	concurrencyWg = &sync.WaitGroup{}
+
 	// Set environment
 	os.Setenv("PATH", fmt.Sprintf("%s:%s", toolsBinDir, os.Getenv("PATH")))
 	os.Setenv("GOBIN", toolsBinDir)
@@ -297,31 +375,6 @@ func init() {
 		panicOnError(os.MkdirAll(dir, os.FileMode(0777)))
 	}
 }
-
-//func copyFile(src, dest string) error {
-//	st, err := os.Stat(src)
-//	if err != nil {
-//		return err
-//	}
-//
-//	from, err := os.Open(src)
-//	if err != nil {
-//		return err
-//	}
-//	defer from.Close()
-//
-//	to, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, st.Mode()) //nolint:nosnakecase
-//	if err != nil {
-//		return err
-//	}
-//	defer to.Close()
-//
-//	if _, err := io.Copy(to, from); err != nil {
-//		return err
-//	}
-//
-//	return nil
-//}
 
 // must consumes an error from a function.
 func must[T any](result T, err error) T {
@@ -513,32 +566,15 @@ func All() error {
 	return nil
 }
 
-// Release builds release archives under the release/ directory.
-func Release() error {
-	mg.Deps(ReleaseBin)
-
+// GithubReleaseMatrix emits a line to setup build matrix jobs for release builds.
+// nolint:unparam
+func GithubReleaseMatrix() error {
+	output := make([]string, 0, len(platforms))
 	for _, platform := range platforms {
-		owd, wderr := os.Getwd()
-		if wderr != nil {
-			return wderr
-		}
-		panicOnError(os.Chdir(binDir))
-
-		if platform.OS == "windows" {
-			// build a zip binary as well
-			err := archiver.DefaultZip.Archive([]string{platform.ArchiveDir()}, fmt.Sprintf("%s.zip", platform.ReleaseBase()))
-			if err != nil {
-				return err
-			}
-		}
-		// build tar gz
-		err := archiver.DefaultTarGz.Archive([]string{platform.ArchiveDir()}, fmt.Sprintf("%s.tar.gz", platform.ReleaseBase()))
-		if err != nil {
-			return err
-		}
-		panicOnError(os.Chdir(owd))
+		output = append(output, platform.String())
 	}
-
+	jsonData := must(json.Marshal(output))
+	fmt.Printf("::set-output name=release-matrix::%s\n", string(jsonData))
 	return nil
 }
 
@@ -548,14 +584,14 @@ func makeBuilder(cmd string, platform Platform) func() error {
 
 		Log("Make platform binary directory:", platform.PlatformDir())
 		if err := os.MkdirAll(platform.PlatformDir(), os.FileMode(0777)); err != nil {
-			return err
+			return errors.Wrapf(err, "error making directory: cmd: %s", cmd)
 		}
 
 		Log("Checking for changes:", platform.PlatformBin(cmd))
 		if changed, err := target.Path(platform.PlatformBin(cmd), goSrc...); !changed {
 			if err != nil {
 				if !os.IsNotExist(err) {
-					return err
+					return errors.Wrapf(err, "error while checking for changes: cmd: %s", cmd)
 				}
 			} else {
 				return nil
@@ -564,8 +600,8 @@ func makeBuilder(cmd string, platform Platform) func() error {
 
 		fmt.Println("Building", platform.PlatformBin(cmd))
 		return sh.RunWith(map[string]string{"CGO_ENABLED": "0", "GOOS": platform.OS, "GOARCH": platform.Arch},
-			"go", "build", "-a", "-ldflags", fmt.Sprintf("-extldflags '-static' -X main.Version=%s", version),
-			"-o", platform.PlatformBin(cmd), cmdSrc)
+			"go", "build", "-a", "-ldflags", fmt.Sprintf("-buildid='' -extldflags '-static' -X main.Version=%s", version),
+			"-trimpath", "-o", platform.PlatformBin(cmd), cmdSrc)
 	}
 	return f
 }
@@ -589,71 +625,116 @@ func Binary() error {
 		return errPlatformNotSupported
 	}
 
-	for _, cmd := range goCmds {
-		err := makeBuilder(cmd, *curPlatform)()
-		if err != nil {
-			return err
-		}
-		// Make a root symlink to the build
-		cmdPath := path.Join(curDir, cmd)
-		os.Remove(cmdPath)
-		if err := os.Symlink(curPlatform.PlatformBin(cmd), cmdPath); err != nil {
-			return err
-		}
+	if err := ReleaseBin(curPlatform.String()); err != nil {
+		return err
 	}
 
-	return nil
+	buildResults := map[string]func() error{}
+
+	for _, cmd := range goCmds {
+		buildResults[cmd] = concurrentRun(func() error {
+			// Make a root symlink to the build
+			cmdPath := path.Join(curDir, cmd)
+			os.Remove(cmdPath)
+			if err := os.Symlink(curPlatform.PlatformBin(cmd), cmdPath); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+
+	return waitResults(buildResults)()
+}
+
+// doReleaseBin handles the deferred building of an actual release binary.
+// nolint:gocritic
+func doReleaseBin(OSArch string) func() error {
+	platform, ok := platformsLookup[OSArch]
+	if !ok {
+		return func() error { return errors.Wrapf(errPlatformNotSupported, "ReleaseBin: %s", OSArch) }
+	}
+
+	buildResults := map[string]func() error{}
+
+	for _, cmd := range goCmds {
+		buildResults[cmd] = concurrentRun(makeBuilder(cmd, platform))
+	}
+
+	return waitResults(buildResults)
 }
 
 // ReleaseBin builds cross-platform release binaries under the bin/ directory.
-func ReleaseBin() error {
-	buildCmds := []interface{}{}
-
-	for _, cmd := range goCmds {
-		for _, platform := range platforms {
-			buildCmds = append(buildCmds, makeBuilder(cmd, platform))
-		}
-	}
-
-	resultsCh := make(chan error, len(buildCmds))
-	concurrencyControl := make(chan struct{}, concurrency)
-	for _, buildCmd := range buildCmds {
-		go func(buildCmd interface{}) {
-			concurrencyControl <- struct{}{}
-			resultsCh <- buildCmd.(func() error)()
-			<-concurrencyControl
-		}(buildCmd)
-	}
-	// Doesn't work at the moment
-	//	mg.Deps(buildCmds...)
-	results := []error{}
-	var resultErr error = nil
-	for len(results) < len(buildCmds) {
-		err := <-resultsCh
-		results = append(results, err)
-		if err != nil {
-			fmt.Println(err)
-			resultErr = errors.Wrap(errParallelBuildFailed, "")
-		}
-		fmt.Printf("Finished %v of %v\n", len(results), len(buildCmds))
-	}
-
-	return resultErr
+// nolint:gocritic
+func ReleaseBin(OSArch string) error {
+	return doReleaseBin(OSArch)()
 }
 
-// Docker builds the docker image
-//func Docker() error {
-//	mg.Deps(Binary)
-//	p := getCurrentPlatform()
-//	if p == nil {
-//		return errors.New("current platform is not supported")
-//	}
-//
-//	return sh.RunV("docker", "build",
-//		fmt.Sprintf("--build-arg=binary=%s",
-//			must(filepath.Rel(curDir, p.PlatformBin(binRootName)))),
-//		"-t", containerName, ".")
-//}
+// ReleaseBinAll builds cross-platform release binaries under the bin/ directory.
+func ReleaseBinAll() error {
+	buildResults := map[string]func() error{}
+	for OSArch := range platformsLookup {
+		buildResults[fmt.Sprintf("build-%s", OSArch)] = doReleaseBin(OSArch)
+	}
+
+	return waitResults(buildResults)()
+}
+
+// Release builds release archives under the release/ directory.
+// nolint:gocritic
+func doRelease(OSArch string) func() error {
+	platform, ok := platformsLookup[OSArch]
+	if !ok {
+		return func() error { return errors.Wrapf(errPlatformNotSupported, "ReleaseBin: %s", OSArch) }
+	}
+
+	return func() error {
+		if err := ReleaseBin(OSArch); err != nil {
+			return err
+		}
+
+		archiveCmds := map[string]func() error{}
+		if platform.OS == "windows" {
+			// build a zip binary as well
+			archiveName := fmt.Sprintf("%s.zip", platform.ReleaseBase())
+			archiveCmds[archiveName] = concurrentRun(func() error {
+				if _, err := os.Stat(archiveName); err == nil {
+					_ = os.Remove(archiveName)
+				}
+				archiveDir := path.Join(binDir, platform.ArchiveDir())
+				fmt.Println("Archiving", archiveName)
+				return archiver.NewZip().Archive([]string{archiveDir}, archiveName)
+			})
+		}
+
+		// build tar gz
+		archiveName := fmt.Sprintf("%s.tar.gz", platform.ReleaseBase())
+		archiveCmds[archiveName] = concurrentRun(func() error {
+			if _, err := os.Stat(archiveName); err == nil {
+				_ = os.Remove(archiveName)
+			}
+			archiveDir := path.Join(binDir, platform.ArchiveDir())
+			fmt.Println("Archiving", archiveName)
+			return archiver.NewTarGz().Archive([]string{archiveDir}, archiveName)
+		})
+
+		return waitResults(archiveCmds)()
+	}
+}
+
+// nolint:gocritic
+func Release(OSArch string) error {
+	return doRelease(OSArch)()
+}
+
+// Release builds release archives under the release/ directory.
+func ReleaseAll() error {
+	buildResults := map[string]func() error{}
+	for OSArch := range platformsLookup {
+		buildResults[fmt.Sprintf("release-%s", OSArch)] = doRelease(OSArch)
+	}
+
+	return waitResults(buildResults)()
+}
 
 // Clean deletes build output and cleans up the working directory.
 func Clean() error {

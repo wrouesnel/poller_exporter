@@ -8,6 +8,7 @@ on:
       - completed
     branches:
       - main
+  push:
     tags:
       - v*
 
@@ -24,6 +25,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Fetch tags
+        run: git fetch --prune --unshallow --tags -f
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -47,6 +51,14 @@ jobs:
           tags: |
             # set latest tag for default branch
             type=raw,value=latest,enable={{is_default_branch}}
+            type=schedule
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+            type=sha,format=long
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
