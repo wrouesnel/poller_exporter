@@ -64,7 +64,7 @@ func NewHost(opts config.HostConfig) *Host {
 		Resolvable: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
 			Subsystem:   "host",
-			Name:        "resolveable_boolean",
+			Name:        "resolvable_boolean",
 			Help:        "Did the last attempt to DNS resolve this host succeed?",
 			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
 		}),
@@ -87,7 +87,7 @@ func NewHost(opts config.HostConfig) *Host {
 			prometheus.CounterOpts{
 				Namespace:   Namespace,
 				Subsystem:   "host",
-				Name:        "resolveable_total",
+				Name:        "resolvable_total",
 				Help:        "cumulative successful DNS resolutions",
 				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
 			},
