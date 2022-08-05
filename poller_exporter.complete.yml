@@ -1,0 +1,83 @@
+# This is *every* poller_exporter config option in one-file.
+# This file should not normally used this way - specific only what you need.
+
+# if specific then HTTP basic authentication is enabled on the web interface
+# and metrics endpoint.
+username: admin
+password: my-pass
+
+# if these parameters are specified, the web interface is hosted with TLS enabled.
+tls_cert: /path/to/public.crt
+tls_key: /path/to/private.key
+
+poll_frequency: 60s # default frequency to poll a host's services.
+timeout: 40s # default service timeout for connections to each service defined for a host
+max_bytes: 8192 # default maximum bytes to read from connected sockets when looking for responses.
+
+disable_ping: false # disable pinging this host. Status will remain "unknown" in metrics.
+ping_count: 5 # default number of ICMP pings to send before considering a host down
+ping_timeout: 1s # default time to wait for ICMP ping reply before failing a ping
+
+# List of hosts which are to be polled.
+# Hosts should only occur once - duplicates will have the second duplicate
+# dropped with a warning in the logs.
+hosts:
+  - hostname: myhost  # hostname or IP address of the node to connect to
+    poll_frequency: 2s # override global poll_frequency for just this host
+    disable_ping: true # override global disable_ping for just this host
+    ping_timeout: 5s # override global ping_timeout for just this host
+    ping_count: 2 # override global ping_count for just this host
+
+    # basic checks simply test whether a TCP port is open. They will also check
+    # the status of TLS certificates if requested.
+    basic_checks:
+      - name: SMTP # name is a descriptive name for the service. It is included in the metric label.
+        proto: tcp # proto is either tcp or udp. Only `tcp` is useful.
+        port: 465 # port is the port number to connect to.
+        timeout: 5s # timeout overrides the global default service timeout
+        ssl: true # controls whether TLS is started on connection and certificate/expiry/validity metrics collected
+    # challenge-response checks send a challenge to the service and look for a response, returning
+    # metrics indicating whether it was found
+    challenge_response_checks:
+      - # these settings are the same as for basic_checks
+        name: CustomDaemon
+        proto: tcp
+        port: 22
+        timeout: 5s
+        ssl: false
+        # these settings are added for challenge_response_checks
+        challenge: MY_UNIQUE_HEADER # challenge is a byte-string to send to the service after connecting
+                                    # and after TLS has been established (if enabled).
+        response_re: RESPONSE_HEADER # response_re is a golang regex which will be run against
+                                     # the raw bytes returned after sending the challenge upto
+                                     # max_bytes
+        response: literal-value # response is an alternative to response_re and is a prefix
+                                # looked for in the raw bytes returned after sending challenge.
+                                # A typical use would be the SSH-2.0- header.
+        max_bytes: 65535 # override global max_bytes value for just this service.
+    # http checks are like challenge-response checks, but assume the other end of the service is
+    # an HTTP service that understands HTTP semantics. All challenge/response handling is in the
+    # context of the body of an HTTP response.
+    http_checks:
+      - # these settings are the same as for challenge_response_checks
+        name: MyHTTPServer
+        proto: tcp
+        port: 443
+        timeout: 50s
+        ssl: true
+        challenge: some-data
+        response_re: ^<field-tag>
+        response: <html>  # response tends not to be very useful with HTTP services
+        max_bytes: 131072 # max_bytes usually should be increased substantially. For HTTP services this
+                          # is counted against the response body only.
+        # these settings are added
+        verb: GET # http verb to use for the request. Another example would be POST.
+        url: http://vhost/query-path?with_paramters=1 # url is the URL that is passed in the HTTP headers.
+                                                      # It can be used to test virtual hosts without needing
+                                                      # correct DNS. Scheme has no effect (use the ssl setting).
+        success_status: 200,201,300-399 # success_status is a collection of codes to count as the HTTP service
+                                        # being "up" and can be specified as a comma-separated list of values or
+                                        # ranges.
+        auth: true  # send basic auth headers to the service
+        username: monitor # username to send when basic auth is enabled
+        password: monitoring # password to send when basic auth is enabled
