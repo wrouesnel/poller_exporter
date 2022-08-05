@@ -1,0 +1,33 @@
+hosts:
+  - hostname: host-with-custom
+    basic_checks:
+      - name: SMTP
+        proto: tcp
+        port: 443
+        tls_cacerts:
+        - test_data/tls_cacerts/other.crt
+    challenge_response_checks:
+      - name: SMTP
+        proto: tcp
+        port: 443
+        tls_cacerts:
+          - test_data/tls_cacerts/other.crt
+    http_checks:
+      - name: SMTP
+        proto: tcp
+        port: 443
+        tls_cacerts:
+          - test_data/tls_cacerts/other.crt
+  - hostname: host-with-default
+    basic_checks:
+      - name: SMTP
+        proto: tcp
+        port: 443
+    challenge_response_checks:
+      - name: SMTP
+        proto: tcp
+        port: 443
+    http_checks:
+      - name: SMTP
+        proto: tcp
+        port: 443

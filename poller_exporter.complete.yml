@@ -7,8 +7,8 @@ username: admin
 password: my-pass
 
 # if these parameters are specified, the web interface is hosted with TLS enabled.
-tls_cert: /path/to/public.crt
-tls_key: /path/to/private.key
+tls_cert: test_data/localhost.crt
+tls_key: test_data/localhost.pem
 
 # tls_cacerts specifies the default certificate pool to use for validating TLS
 # certificates. If unspecified, then defaults to the system pool.
@@ -46,7 +46,7 @@ hosts:
         # and to append to it. Omitting it uses a blank pol.
         - system
         # Certificates can either be a file...
-        - /path/to/a/custom/cert.crt
+        - test_data/tls_cacerts/other.crt
         # Or specified as inline strings
         - |
           -----BEGIN CERTIFICATE-----
@@ -88,9 +88,11 @@ hosts:
         name: CustomDaemon
         proto: tcp
         port: 22
-        timeout: 5s
+        timeout: 6s
         tls: false
-        tls_cacert: /path/to/a/custom/cert.crt
+        tls_cacerts:
+        - test_data/tls_cacerts/other.crt
+        - test_data/tls_cacerts/some.crt
         # these settings are added for challenge_response_checks
         challenge: MY_UNIQUE_HEADER # challenge is a byte-string to send to the service after connecting
                                     # and after TLS has been established (if enabled).
@@ -111,7 +113,8 @@ hosts:
         port: 443
         timeout: 50s
         tls: true
-        tls_cacert: /path/to/a/custom/cert.crt
+        tls_cacert:
+        - test_data/tls_cacerts/other.crt
         challenge: some-data
         response_re: ^<field-tag>
         response: <html>  # response tends not to be very useful with HTTP services
@@ -122,8 +125,8 @@ hosts:
         url: http://vhost/query-path?with_paramters=1 # url is the URL that is passed in the HTTP headers.
                                                       # It can be used to test virtual hosts without needing
                                                       # correct DNS. Scheme has no effect (use the ssl setting).
-        success_status: 200,201,300-399 # success_status is a collection of codes to count as the HTTP service
-                                        # being "up" and can be specified as a comma-separated list of values or
+        success_status: 200 201 300-399 # success_status is a collection of codes to count as the HTTP service
+                                        # being "up" and can be specified as a space separated list of values or
                                         # ranges.
         auth: true  # send basic auth headers to the service
         username: monitor # username to send when basic auth is enabled
