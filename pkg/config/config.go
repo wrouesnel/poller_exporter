@@ -1,18 +1,23 @@
 // This is similar to the main Prometheus scheme, because hey, it works pretty well.
 
-//nolint:tagliatelle,exhaustruct,gochecknoglobals
+//nolint:tagliatelle,exhaustruct,gochecknoglobals,cyclop,varnamelen
 package config
 
 import (
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"net/url"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/wrouesnel/poller_exporter/pkg/errutils"
+	"go.uber.org/zap"
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/model"
@@ -21,6 +26,7 @@ import (
 )
 
 const DefaultPollFrequency = 30 * time.Second
+const TLSCACertsSystem string = "system"
 
 var (
 	DefaultConfig Config = Config{
@@ -34,6 +40,10 @@ var (
 	DefaultBasicServiceConfig = BasicServiceConfig{
 		Protocol: "tcp",
 		//MinimumFailures: 1,
+		TLSCACerts: TLSCertificatePool{
+			CertPool: errutils.Must(x509.SystemCertPool()),
+			original: []string{TLSCACertsSystem},
+		},
 	}
 
 	DefaultChallengeResponseServiceConfig = ChallengeResponseConfig{
@@ -46,7 +56,8 @@ var (
 )
 
 var (
-	ErrUnknownFields = errors.New("unknown fields in config map")
+	ErrUnknownFields  = errors.New("unknown fields in config map")
+	ErrInvalidPEMFile = errors.New("PEM file could not be added to certificate pool")
 )
 
 func Load(s string) (*Config, error) {
@@ -82,6 +93,8 @@ type Config struct {
 
 	TLSCertificatePath string `yaml:"tls_cert,omitempty"` // Path to TLS certificate. Enables TLS if specified.
 	TLSKeyPath         string `yaml:"tls_key,omitempty"`  // Path to TLS key file. Enables TLS if specified.
+
+	TLSCACerts TLSCertificatePool `yaml:"tls_cacerts,omitempty"` // Default certificate pool for TLS enabled pollers
 
 	PollFrequency model.Duration `yaml:"poll_frequency,omitempty"` // Default polling frequency for hosts
 	PingTimeout   model.Duration `yaml:"ping_timeout,omitempty"`   // Default ping time out for hosts
@@ -175,11 +188,12 @@ func (c *HostConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // A basic network service.
 type BasicServiceConfig struct {
-	Name     string         `yaml:"name"`              // Name of the service
-	Protocol string         `yaml:"proto,omitempty"`   // TCP or UDP
-	Port     uint64         `yaml:"port"`              // Port number of the service
-	Timeout  model.Duration `yaml:"timeout,omitempty"` // Number of seconds to wait for response
-	UseSSL   bool           `yaml:"ssl,omitempty"`     // The service uses SSL
+	Name       string             `yaml:"name"`                  // Name of the service
+	Protocol   string             `yaml:"proto,omitempty"`       // TCP or UDP
+	Port       uint64             `yaml:"port"`                  // Port number of the service
+	Timeout    model.Duration     `yaml:"timeout,omitempty"`     // Number of seconds to wait for response
+	TLSEnable  bool               `yaml:"tls,omitempty"`         // The service uses TLS
+	TLSCACerts TLSCertificatePool `yaml:"tls_cacerts,omitempty"` // Path to CAfile to verify the service TLS with
 	// MinimumFailures uint64		`yaml:"minimum_failures,omitempty` // Minimum number of failures before marking servie as down
 }
 
@@ -323,7 +337,7 @@ func (hsr HTTPStatusRange) MarshalYAML() (interface{}, error) {
 }
 
 // An HTTP speaking service. Does not yet support being a proxy.
-// If UseSSL is not set but you request HTTPS, it'll fail.
+// If TLSEnable is not set but you request HTTPS, it'll fail.
 type HTTPServiceConfig struct {
 	ChallengeResponseConfig `yaml:",inline,omitempty"`
 	Verb                    string          `yaml:"verb,omitempty"`           // HTTP verb to use
@@ -361,12 +375,11 @@ func (b *Bytes) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // MarshalYAML implements the yaml.Marshaler interface.
-//nolint:nilnil
 func (b *Bytes) MarshalYAML() (interface{}, error) {
 	if len(*b) != 0 {
 		return string(*b), nil
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 // Regexp encapsulates a regexp.Regexp and makes it YAML marshallable.
@@ -448,6 +461,67 @@ func (u URL) MarshalYAML() (interface{}, error) {
 		return u.String(), nil
 	}
 	return nil, nil
+}
+
+// TLSCertificatePool is our custom type for decoding a certificate pool out of
+// YAML.
+type TLSCertificatePool struct {
+	*x509.CertPool
+	original []string
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface for tls_cacerts.
+func (t *TLSCertificatePool) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s []string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+
+	// Prescan to check for system cert package request
+	t.CertPool = nil
+	for _, entry := range s {
+		if entry == TLSCACertsSystem {
+			rootCAs, err := x509.SystemCertPool()
+			if err != nil {
+				zap.L().Warn("could not fetch system certificate pool", zap.Error(err))
+				rootCAs = x509.NewCertPool()
+			}
+			t.CertPool = rootCAs
+			break
+		}
+	}
+
+	if t.CertPool == nil {
+		t.CertPool = x509.NewCertPool()
+	}
+
+	for idx, entry := range s {
+		var pem []byte
+		if entry == TLSCACertsSystem {
+			// skip - handled above
+			continue
+		} else if _, err := os.Stat(entry); err == nil {
+			// Is a file
+			pem, err = ioutil.ReadFile(entry)
+			if err != nil {
+				return errors.Wrapf(err, "could not read certificate file: %s", entry)
+			}
+		} else {
+			pem = []byte(entry)
+		}
+		if ok := t.CertPool.AppendCertsFromPEM(pem); !ok {
+			return errors.Wrapf(ErrInvalidPEMFile, "failed at item %v", idx)
+		}
+	}
+
+	t.original = s
+
+	return nil
+}
+
+// MarshalYAML implements the yaml.Marshaler interface for tls_cacerts.
+func (t *TLSCertificatePool) MarshalYAML() (interface{}, error) {
+	return t.original, nil
 }
 
 func checkOverflow(m map[string]interface{}, ctx string) error {

@@ -10,6 +10,11 @@ password: my-pass
 tls_cert: /path/to/public.crt
 tls_key: /path/to/private.key
 
+# tls_cacerts specifies the default certificate pool to use for validating TLS
+# certificates. If unspecified, then defaults to the system pool.
+tls_cacerts:
+  - system
+
 poll_frequency: 60s # default frequency to poll a host's services.
 timeout: 40s # default service timeout for connections to each service defined for a host
 max_bytes: 8192 # default maximum bytes to read from connected sockets when looking for responses.
@@ -35,7 +40,47 @@ hosts:
         proto: tcp # proto is either tcp or udp. Only `tcp` is useful.
         port: 465 # port is the port number to connect to.
         timeout: 5s # timeout overrides the global default service timeout
-        ssl: true # controls whether TLS is started on connection and certificate/expiry/validity metrics collected
+        tls: true # controls whether TLS is started on connection and certificate/expiry/validity metrics collected
+        tls_cacerts: # tls_cacert specifies to try validating the certificate from the given list
+        # system specifies to use a pool containing the system certificates
+        # and to append to it. Omitting it uses a blank pol.
+        - system
+        # Certificates can either be a file...
+        - /path/to/a/custom/cert.crt
+        # Or specified as inline strings
+        - |
+          -----BEGIN CERTIFICATE-----
+          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
+          -----END CERTIFICATE-----
+
     # challenge-response checks send a challenge to the service and look for a response, returning
     # metrics indicating whether it was found
     challenge_response_checks:
@@ -44,7 +89,8 @@ hosts:
         proto: tcp
         port: 22
         timeout: 5s
-        ssl: false
+        tls: false
+        tls_cacert: /path/to/a/custom/cert.crt
         # these settings are added for challenge_response_checks
         challenge: MY_UNIQUE_HEADER # challenge is a byte-string to send to the service after connecting
                                     # and after TLS has been established (if enabled).
@@ -64,7 +110,8 @@ hosts:
         proto: tcp
         port: 443
         timeout: 50s
-        ssl: true
+        tls: true
+        tls_cacert: /path/to/a/custom/cert.crt
         challenge: some-data
         response_re: ^<field-tag>
         response: <html>  # response tends not to be very useful with HTTP services

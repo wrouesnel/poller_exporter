@@ -22,6 +22,9 @@ docker build -t poller_exporter .
 docker run -p 9115:9115 -v /myconfig.yml:/poller_exporter.yml
 ```
 
+Documentation on configuration options can be found in the complete parameters
+example file [poller_exporter.complete.yml](./poller_exporter.complete.yml).
+
 # Web UI
 
 The web UI will provide basic information about the configured pollers - this

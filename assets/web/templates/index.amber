@@ -1,5 +1,7 @@
+doctype 5
 head
-    //script[type="text/javascript"][src="static/js/bootstrap.js"]
+    meta[name="viewport"][content="width=device-width, initial-scale=1"]
+    script[type="text/javascript"][src="static/js/bootstrap.js"]
     link[type="text/css"][rel="stylesheet"][href="static/css/bootstrap.css"]
 body
     div.container-fluid

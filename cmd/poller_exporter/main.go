@@ -14,6 +14,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/wrouesnel/poller_exporter/pkg/errutils"
+
 	"github.com/wrouesnel/poller_exporter/pkg/config"
 
 	"github.com/alecthomas/kong"
@@ -129,7 +131,7 @@ func main() {
 		)) // Prometheus
 	// Static asset handling
 
-	router.Handler("GET", "/static/*filepath", http.FileServer(http.FS(Must[fs.FS](fs.Sub(assets.Assets, "web")))))
+	router.Handler("GET", "/static/*filepath", http.FileServer(http.FS(errutils.Must[fs.FS](fs.Sub(assets.Assets, "web")))))
 
 	monitoredHosts := make([]*pollers.Host, 0, len(cfg.Hosts))
 	router.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -222,11 +224,4 @@ func main() {
 	<-webCtx.Done()
 
 	appLog.Info("Exiting normally")
-}
-
-func Must[T any](result T, err error) T {
-	if err != nil {
-		panic(err)
-	}
-	return result
 }

@@ -91,40 +91,41 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 	poller = Poller(newBasicService)
 
 	// If SSL, then return an SSL service instead
-	if opts.UseSSL {
-		newSSLservice := SSLService{
-			SSLNotBefore: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	if opts.TLSEnable {
+		newSSLservice := TLSService{
+			CertificateNotBefore: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace:   Namespace,
 				Subsystem:   "service",
-				Name:        "ssl_validity_notbefore",
-				Help:        "SSL certificate valid from",
+				Name:        "tls_certificate_validity_notbefore",
+				Help:        "TLS certificate valid from",
 				ConstLabels: clabels,
 			}, []string{"commonName"}),
-			SSLNotAfter: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			CertificateNotAfter: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace:   Namespace,
 				Subsystem:   "service",
-				Name:        "ssl_validity_notafter",
-				Help:        "SSL certificate expiry",
+				Name:        "tls_certificate_validity_notafter",
+				Help:        "TLS certificate expiry",
 				ConstLabels: clabels,
 			}, []string{"commonName"}),
-			SSLValid: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			CertificateValid: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace:   Namespace,
 				Subsystem:   "service",
-				Name:        "ssl_validity_valid",
-				Help:        "SSL certificate can be validated by the scraper process",
+				Name:        "tls_certificate_validity_valid",
+				Help:        "TLS certificate can be validated by the scraper process",
 				ConstLabels: clabels,
 			}, []string{"commonName"}),
-			SSLValidCount: prometheus.NewCounterVec(
+			CertificateValidCount: prometheus.NewCounterVec(
 				prometheus.CounterOpts{
 					Namespace:   Namespace,
 					Subsystem:   "service",
-					Name:        "ssl_validity_valid_total",
-					Help:        "cumulative count of SSL validations",
+					Name:        "tls_certificate_validity_valid_total",
+					Help:        "cumulative count of TLS certificate validations",
 					ConstLabels: clabels,
 				},
 				[]string{"result"},
 			),
-			Poller: poller,
+			tlsRootCAs: opts.TLSCACerts.CertPool,
+			Poller:     poller,
 		}
 		poller = Poller(&newSSLservice) // Turn the SSL service into a Poller
 	}
