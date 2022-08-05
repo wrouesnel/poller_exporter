@@ -176,12 +176,12 @@ func (s *Host) NextPoll() time.Duration {
 }
 
 func (s *Host) Describe(ch chan<- *prometheus.Desc) {
+	s.log().Debug("Describe Host Metric", zap.String("host", s.Hostname))
 	s.NumPolls.Describe(ch)
 	s.LastPollTime.Describe(ch)
 	s.Resolvable.Describe(ch)
 	s.PathReachable.Describe(ch)
 	s.PingLatency.Describe(ch)
-	s.NumPolls.Describe(ch)
 
 	s.ResolvableCount.Describe(ch)
 	s.ReachableCount.Describe(ch)
@@ -194,6 +194,8 @@ func (s *Host) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (s *Host) Collect(ch chan<- prometheus.Metric) {
+	s.log().Debug("Collecting Host Metric", zap.String("host", s.Hostname))
+
 	s.NumPolls.Collect(ch)
 	s.LastPollTime.Collect(ch)
 	s.Resolvable.Collect(ch)
@@ -215,8 +217,6 @@ func (s *Host) Collect(ch chan<- prometheus.Metric) {
 		s.PingLatency.Set(float64(s.pingLatency / time.Microsecond))
 	}
 	s.PingLatency.Collect(ch)
-
-	s.NumPolls.Collect(ch)
 
 	s.ResolvableCount.Collect(ch)
 	s.ReachableCount.Collect(ch)

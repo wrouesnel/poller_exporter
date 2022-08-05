@@ -131,7 +131,7 @@ func main() {
 
 	router.Handler("GET", "/static/*filepath", http.FileServer(http.FS(Must[fs.FS](fs.Sub(assets.Assets, "web")))))
 
-	var monitoredHosts []*pollers.Host
+	monitoredHosts := make([]*pollers.Host, 0, len(cfg.Hosts))
 	router.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		data := struct {
 			Cfg   *config.Config
@@ -147,7 +147,6 @@ func main() {
 	})
 
 	appLog.Info("Initialize the host pollers")
-	monitoredHosts = make([]*pollers.Host, len(cfg.Hosts))
 
 	// We don't allow duplicate hosts, but also don't want to panic just due
 	// to a typo, so keep track and skip duplicates here.
@@ -165,15 +164,12 @@ func main() {
 			continue
 		}
 		host := pollers.NewHost(hostCfg)
-		monitoredHosts[realIdx] = host
+		monitoredHosts = append(monitoredHosts, host)
 		prometheus.MustRegister(host)
 
 		seenHosts[hostCfg.Hostname] = true
 		realIdx++
 	}
-
-	// Trim monitoredHosts to the number we actually used
-	monitoredHosts = monitoredHosts[0:realIdx]
 
 	// This is the dispatcher. It is responsible for invoking the doPoll method
 	// of hosts.
