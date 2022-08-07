@@ -1,3 +1,4 @@
+// nolint:wrapcheck,nonamedreturns
 package iohelpers
 
 import (

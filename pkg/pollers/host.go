@@ -145,7 +145,7 @@ func NewHost(opts *config.HostConfig) *Host {
 
 	// Setup it's services
 	for _, basicCfg := range opts.BasicChecks {
-		newHost.Pollers = append(newHost.Pollers, Poller(NewBasicService(&newHost, *basicCfg))) //nolint:unconvert
+		newHost.Pollers = append(newHost.Pollers, Poller(NewBasicService(&newHost, *basicCfg)))
 	}
 
 	for _, crCfg := range opts.ChallengeResponseChecks {

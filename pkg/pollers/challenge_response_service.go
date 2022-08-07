@@ -62,6 +62,7 @@ func (crms *ChallengeResponseMetricSet) Collect(ch chan<- prometheus.Metric) {
 }
 
 // NewChallengeResponseMetricSet initializes a new set of metrics with the given constant labels.
+// nolint:funlen
 func NewChallengeResponseMetricSet(constantLabels prometheus.Labels) ChallengeResponseMetricSet {
 	metricSet := ChallengeResponseMetricSet{
 		ServiceRequestSuccessful: prometheus.NewGauge(
@@ -188,7 +189,6 @@ type ChallengeResponseService struct {
 	BasePoller
 }
 
-//nolint:funlen
 func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig) *ChallengeResponseService {
 	clabels := prometheus.Labels{
 		"poller_type": "challenge-response",
@@ -288,6 +288,7 @@ func (crs *ChallengeResponseService) Collect(ch chan<- prometheus.Metric) {
 	crs.BasePoller.Collect(ch)
 }
 
+// nolint: funlen
 func (crs *ChallengeResponseService) doPoll() net.Conn {
 	// Call the parent poller (TLS or basic service)
 	conn := crs.BasePoller.doPoll()
@@ -365,7 +366,6 @@ func (crs *ChallengeResponseService) doPoll() net.Conn {
 	return conn
 }
 
-//nolint:funlen
 func (crs *ChallengeResponseService) Poll() {
 	conn := crs.doPoll()
 	if conn != nil {
@@ -380,11 +380,12 @@ func (crs *ChallengeResponseService) Poll() {
 // Prometheus form the number of bytes and result.
 func (crs *ChallengeResponseService) Challenge(conn io.Writer) (float64, Status) {
 	var challenge []byte
-	if crs.config.ChallengeBinary != nil {
+	switch {
+	case crs.config.ChallengeBinary != nil:
 		challenge = crs.config.ChallengeBinary
-	} else if crs.config.ChallengeString != nil {
+	case crs.config.ChallengeString != nil:
 		challenge = []byte(*crs.config.ChallengeString)
-	} else {
+	default:
 		// this normally shouldn't happen, but this function cannot return an
 		// error so we must send something.
 		challenge = []byte("")
@@ -431,6 +432,7 @@ func TryReadMatch(conn io.Reader, config *config.ChallengeResponseConfig) (Statu
 		allBytes = append(allBytes, currentBytes...)
 
 		// Try and match.
+		// nolint: nestif
 		if config.ResponseRegex != nil {
 			if config.ResponseRegex.Match(allBytes) {
 				serviceResponded = PollStatusSuccess

@@ -179,6 +179,7 @@ func (s *BasicService) dialAndScrape() (*PollConnection, error) {
 	// Set absolute deadline
 	deadline := time.Now().Add(time.Duration(s.config.Timeout))
 	// Build context for deadline
+	// nolint:govet
 	ctx, ctxCancel := context.WithDeadline(context.Background(), deadline)
 
 	var err error
@@ -193,12 +194,12 @@ func (s *BasicService) dialAndScrape() (*PollConnection, error) {
 	default:
 		l.Debug("Explicit proxy configured", zap.String("proxy", s.config.Proxy))
 		// config has already checked this URL and we don't want to overdesign it
-		proxyUrl := lo.Must(url.Parse(s.config.Proxy))
+		proxyURL := lo.Must(url.Parse(s.config.Proxy))
 		// proxy package handles default specification
-		proxyDialer, err = proxy.FromURL(proxyUrl, proxy.Direct)
+		proxyDialer = lo.Must(proxy.FromURL(proxyURL, proxy.Direct))
 	}
 
-	dialer := proxyDialer.(proxy.ContextDialer)
+	dialer := proxyDialer.(proxy.ContextDialer) //nolint: forcetypeassert
 
 	var conn net.Conn
 	conn, err = dialer.DialContext(ctx, s.config.Protocol, fmt.Sprintf("%s:%d", s.Host().Hostname, s.Port()))
@@ -218,6 +219,8 @@ func (s *BasicService) dialAndScrape() (*PollConnection, error) {
 		l.Error("Error setting deadline for connection", zap.Error(err))
 	}
 
+	// govet will flag this as a lost context, but this is just how poller_exporter works.
+	// nolint:govet,containedctx,nolintlint
 	return &PollConnection{
 		Conn:     conn,
 		dialer:   dialer,

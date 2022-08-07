@@ -47,7 +47,7 @@ func (s *TLSCACertsSuite) loadCertsFile(c *C, filename string) *x509.CertPool {
 	c.Check(yaml.Unmarshal(data, &intfMap), IsNil, Commentf("YAML decode failed"))
 
 	pool := new(config.TLSCertificatePool)
-	decoder, err := config.ConfigDecoder(pool)
+	decoder, err := config.Decoder(pool, false)
 	c.Assert(err, IsNil, Commentf("Config decoder initialization failed"))
 
 	err = decoder.Decode(intfMap)
@@ -254,10 +254,10 @@ func (ce *ConfigExpected) TestCompleteConfig(c *C) {
 	c.Check(crChecks.TLSEnable, Equals, false)
 	c.Check(len(GetPoolCertificates(crChecks.TLSCACerts.CertPool)), Equals, 2, Commentf("challenge_response has more certs"))
 
-	c.Check(crChecks.ChallengeString, Equals, "MY_UNIQUE_HEADER")
+	c.Check(*crChecks.ChallengeString, Equals, "MY_UNIQUE_HEADER")
 	c.Check([]byte(crChecks.ChallengeBinary), DeepEquals, []byte{114, 149, 9, 49, 56, 189, 30, 220, 186, 59, 139, 28, 127, 66, 178, 97})
 	c.Check(crChecks.ResponseRegex.String(), Equals, regexp.MustCompile("RESPONSE_HEADER").String())
-	c.Check(crChecks.ResponseLiteral, Equals, "literal-value")
+	c.Check(*crChecks.ResponseLiteral, Equals, "literal-value")
 	c.Check([]byte(crChecks.ResponseBinary), DeepEquals, []byte{114, 149, 9, 49, 56, 189, 30, 220, 186, 59, 139, 28, 127, 66, 178, 97})
 	c.Check(crChecks.MaxBytes, Equals, uint64(65535))
 
@@ -271,14 +271,14 @@ func (ce *ConfigExpected) TestCompleteConfig(c *C) {
 	httpServiceCerts := GetPoolCertificates(httpChecks.TLSCACerts.CertPool)
 	c.Check(len(httpServiceCerts), Equals, 1)
 
-	c.Check(httpChecks.ChallengeString, Equals, "some-data")
+	c.Check(*httpChecks.ChallengeString, Equals, "some-data")
 	c.Check([]byte(httpChecks.ChallengeBinary), DeepEquals, []byte{114, 149, 9, 49, 56, 189, 30, 220, 186, 59, 139, 28, 127, 66, 178, 97})
 	c.Check(httpChecks.ResponseRegex.String(), Equals, regexp.MustCompile("^<field-tag>").String())
-	c.Check(httpChecks.ResponseLiteral, Equals, "<html>")
+	c.Check(*httpChecks.ResponseLiteral, Equals, "<html>")
 	c.Check([]byte(httpChecks.ResponseBinary), DeepEquals, []byte{114, 149, 9, 49, 56, 189, 30, 220, 186, 59, 139, 28, 127, 66, 178, 97})
 	c.Check(httpChecks.MaxBytes, Equals, uint64(131072))
 
-	c.Check(httpChecks.Verb, Equals, "GET")
+	c.Check(httpChecks.Verb, Equals, config.HTTPVerb("GET"))
 	c.Check(httpChecks.URL.String(), Equals, "http://vhost/query-path?with_paramters=1")
 	testRange := config.HTTPStatusRange{}
 	c.Check(testRange.UnmarshalText([]byte("200 201 300-399")), IsNil)

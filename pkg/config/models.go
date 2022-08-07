@@ -230,6 +230,7 @@ type TLSCertificatePool struct {
 }
 
 // MapStructureDecode implements the yaml.Unmarshaler interface for tls_cacerts.
+//nolint:funlen,cyclop
 func (t *TLSCertificatePool) MapStructureDecode(input interface{}) error {
 	// Get the slice
 	interfaceSlice, ok := input.([]interface{})
@@ -345,17 +346,16 @@ type ProxyURL string
 // UnmarshalText implements encoding.UnmarshalText.
 func (p *ProxyURL) UnmarshalText(text []byte) error {
 	s := string(text)
-	_, err := url.Parse(s)
-	if err != nil {
+	if _, err := url.Parse(s); err != nil {
 		*p = ProxyURL(s)
-		return nil
+		return errors.Wrapf(err, "ProxyURL UnmarshalText")
 	}
 	switch s {
 	case ProxyDirect, ProxyEnvironment:
 		*p = ProxyURL(s)
 		return nil
 	default:
-		return err
+		return nil
 	}
 }
 

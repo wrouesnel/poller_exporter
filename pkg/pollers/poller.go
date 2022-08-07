@@ -24,6 +24,7 @@ const PollStatusFailed = Status(float64(0))
 const MetricLabelSuccess = "successful"
 const MetricLabelFailed = "failed"
 
+// nolint:gochecknoinits
 func init() {
 	// Register additional proxy schemes
 	proxy.RegisterDialerType("http", connectproxy.New)
@@ -32,6 +33,7 @@ func init() {
 
 // PollConnection wraps net.Conn and carries additional information about the
 // service poll.
+//nolint:containedctx
 type PollConnection struct {
 	net.Conn
 	dialer   proxy.ContextDialer // dialer is the dialer instance used to make the original outbound connection

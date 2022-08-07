@@ -37,7 +37,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var Version = "0.0.0"
+var Version = "0.0.0" // nolint: gochecknoglobals
 
 //nolint:gochecknoglobals
 var CLI struct {

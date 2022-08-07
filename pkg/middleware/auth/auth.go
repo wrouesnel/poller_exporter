@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shaj13/go-guardian/v2/auth"
 	"github.com/shaj13/go-guardian/v2/auth/strategies/union"
-	_ "github.com/shaj13/libcache/fifo"
 	"github.com/wrouesnel/poller_exporter/pkg/config"
 	"go.uber.org/zap"
 
@@ -20,6 +19,7 @@ var (
 )
 
 // basicValidator generates a basic auth validator function from the supplied map.
+// nolint: unparam
 func basicValidator(userMap map[string]map[string]struct{}) (basic.AuthenticateFunc, error) {
 	return func(ctx context.Context, r *http.Request, username, password string) (auth.Info, error) {
 		storedPasswords, ok := userMap[username]
@@ -71,13 +71,15 @@ func SetupAuthHandler(config *config.AuthConfig, next http.Handler) (http.Handle
 	return func(w http.ResponseWriter, r *http.Request) {
 		l.Debug("Authentication Middleware")
 		user, err := strategy.Authenticate(r.Context(), r)
-		switch err {
-		case ErrInvalidUser, ErrInvalidCredentials:
+
+		switch {
+		case errors.Is(err, ErrInvalidUser), errors.Is(err, ErrInvalidCredentials):
 			l.Debug("Authentication Failed", zap.Error(err))
 			code := http.StatusUnauthorized
 			http.Error(w, http.StatusText(code), code)
 			return
 		}
+
 		l.Debug("Authentication Success", zap.String("user", user.GetUserName()))
 		next.ServeHTTP(w, r)
 	}, nil

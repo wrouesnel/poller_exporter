@@ -56,6 +56,7 @@ type HTTPService struct {
 	Poller                // but it is a Poller
 }
 
+// nolint:funlen
 func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 	if opts.Verb == "" {
 		opts.Verb = "GET"
@@ -214,7 +215,7 @@ func (hs *HTTPService) isWriter() bool {
 	return (hs.config.ChallengeString != nil || hs.config.ChallengeBinary != nil)
 }
 
-//nolint:funlen
+// nolint:funlen,cyclop
 func (hs *HTTPService) Poll() {
 	l := hs.log().With(zap.String("verb", hs.config.Verb.String()),
 		zap.String("hostname", hs.Host().Hostname),
@@ -234,12 +235,11 @@ func (hs *HTTPService) Poll() {
 			hs.serviceResponseDuration = 0
 			return
 		}
-
 	}
 	defer func() {
 		if err := conn.Close(); err != nil {
 			// This happens normally, ignore it.
-			if err != net.ErrClosed {
+			if errors.Is(err, net.ErrClosed) {
 				l.Info("Error closing connection", zap.String("error", err.Error()))
 			}
 		}
@@ -278,11 +278,12 @@ func (hs *HTTPService) Poll() {
 	bodyWriter = nil
 	if hs.isWriter() {
 		var challenge []byte
-		if hs.config.ChallengeBinary != nil {
+		switch {
+		case hs.config.ChallengeBinary != nil:
 			challenge = hs.config.ChallengeBinary
-		} else if hs.config.ChallengeString != nil {
+		case hs.config.ChallengeString != nil:
 			challenge = []byte(*hs.config.ChallengeString)
-		} else {
+		default:
 			// this normally shouldn't happen, but this function cannot return an
 			// error so we must send something.
 			challenge = []byte("")
@@ -329,54 +330,53 @@ func (hs *HTTPService) Poll() {
 		hs.serviceResponseSize = 0
 		hs.serviceResponseTTB = 0
 		return
+	}
+
+	defer resp.Body.Close()
+	l.Debug("HTTP response",
+		zap.String("hostname", hs.Host().Hostname),
+		zap.Uint64("hostname", hs.Port()),
+		zap.Int("http_status_code", resp.StatusCode),
+		zap.String("http_status", resp.Status))
+	// Service responded - set status code
+	hs.lastResponseStatus = resp.StatusCode
+	// Get the redirect count after the request
+	hs.lastRedirectCount = redirectCount.Load()
+
+	// If response status is -1 then service didn't respond with HTTP == not challengeable
+	if hs.lastResponseStatus == -1 {
+		hs.serviceChallengeable = PollStatusFailed
+
+		// We haven't actually matched anything from the part we query, so responsive == unknown
+		hs.serviceResponsive = PollStatusUnknown
+		hs.serviceResponseDuration = 0
+		hs.serviceResponseSize = 0
+		hs.serviceResponseTTB = 0
 	} else {
-		defer resp.Body.Close()
-		l.Debug("HTTP response",
-			zap.String("hostname", hs.Host().Hostname),
-			zap.Uint64("hostname", hs.Port()),
-			zap.Int("http_status_code", resp.StatusCode),
-			zap.String("http_status", resp.Status))
-		// Service responded - set status code
-		hs.lastResponseStatus = resp.StatusCode
-		// Get the redirect count after the request
-		hs.lastRedirectCount = redirectCount.Load()
+		hs.serviceChallengeable = PollStatusSuccess
+		hs.serviceChallengeDuration = time.Since(hs.serviceChallengeStart)
+	}
 
-		// If response status is -1 then service didn't respond with HTTP == not challengeable
-		if hs.lastResponseStatus == -1 {
-			hs.serviceChallengeable = PollStatusFailed
+	// Determine success code
+	httpResponseStatus := hs.checkResponse()
 
-			// We haven't actually matched anything from the part we query, so responsive == unknown
-			hs.serviceResponsive = PollStatusUnknown
-			hs.serviceResponseDuration = 0
-			hs.serviceResponseSize = 0
-			hs.serviceResponseTTB = 0
-		} else {
-			hs.serviceChallengeable = PollStatusSuccess
-			hs.serviceChallengeDuration = time.Since(hs.serviceChallengeStart)
+	// Handle counters
+	if httpResponseStatus == PollStatusSuccess {
+		hs.responseCount.WithLabelValues(MetricLabelSuccess).Inc()
+	} else {
+		hs.responseCount.WithLabelValues(MetricLabelFailed).Inc()
+	}
 
-		}
-
-		// Determine success code
-		httpResponseStatus := hs.checkResponse()
-
-		// Handle counters
-		if httpResponseStatus == PollStatusSuccess {
-			hs.responseCount.WithLabelValues(MetricLabelSuccess).Inc()
-		} else {
-			hs.responseCount.WithLabelValues(MetricLabelFailed).Inc()
-		}
-
-		// Do response body matching
-		if hs.isReader() {
-			hs.serviceResponsive, hs.serviceResponseSize, hs.serviceResponseTTB = TryReadMatch(resp.Body, &hs.config.ChallengeResponseConfig)
-			hs.serviceResponseDuration = time.Since(hs.serviceChallengeStart)
-		} else {
-			// If we're not a reader, then responsiveNess is unknown again.
-			hs.serviceResponsive = PollStatusUnknown
-			hs.serviceResponseSize = math.NaN()
-			hs.serviceResponseDuration = 0
-			hs.serviceResponseTTB = 0
-		}
+	// Do response body matching
+	if hs.isReader() {
+		hs.serviceResponsive, hs.serviceResponseSize, hs.serviceResponseTTB = TryReadMatch(resp.Body, &hs.config.ChallengeResponseConfig)
+		hs.serviceResponseDuration = time.Since(hs.serviceChallengeStart)
+	} else {
+		// If we're not a reader, then responsiveNess is unknown again.
+		hs.serviceResponsive = PollStatusUnknown
+		hs.serviceResponseSize = math.NaN()
+		hs.serviceResponseDuration = 0
+		hs.serviceResponseTTB = 0
 	}
 
 	// Do cumulative counters
@@ -444,7 +444,7 @@ func NewHTTPClient(conn *PollConnection, enableRedirects bool, maxRedirects int6
 							zap.L().Error("Error setting deadling on new connction for HTTP transport", zap.Error(err))
 						}
 					}
-					return newConn, err
+					return newConn, err //nolint:wrapcheck
 				}
 				connectionUsed.Store(true)
 				return conn, nil

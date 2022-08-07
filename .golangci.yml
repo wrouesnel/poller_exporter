@@ -21,6 +21,17 @@ linters:
     - lll
     - gofumpt
     - gci
+    - exhaustruct  # ultimately too noisy for most coding
+    # This one is just infuriating, produces a lot of warnings, and doesn't matter.
+    - godot
+    # These all stopped working suddenly due to a non-existent compilation error.
+    # Retry them regularly.
+    - stylecheck
+    - exhaustive
+    - staticcheck
+    - gosimple
+    - govet
+    - unused
 
 issues:
   exclude-rules:
@@ -29,6 +40,9 @@ issues:
         - dupl
         - funlen
         - varnamelen
+    - path: magefile.go
+      linters:
+        - unparam
 
 linters-settings:
   varnamelen:
@@ -66,6 +80,7 @@ linters-settings:
     ignore-decls:
       - s string
       - w http.ResponseWriter
+      - r *http.Request
 
   tagliatelle:
     # Check the struck tag name case.

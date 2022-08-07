@@ -2,22 +2,28 @@
 
 // Self-contained go-project magefile.
 
-// nolint: deadcode,gochecknoglobals,gochecknoinits,wrapcheck,varnamelen,gomnd,forcetypeassert,forbidigo,funlen,gocognit,cyclop
+// nolint: deadcode,gochecknoglobals,gochecknoinits,wrapcheck,varnamelen,gomnd,forcetypeassert,forbidigo,funlen,gocognit,cyclop,nolintlint
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/bits"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"gopkg.in/yaml.v3"
 
 	archiver "github.com/mholt/archiver"
 
@@ -34,6 +40,7 @@ var (
 	errAutogenUnknownPreCommitScriptFormat = errors.New("unknown pre-commit script format")
 	errPlatformNotSupported                = errors.New("current platform is not supported")
 	errParallelBuildFailed                 = errors.New("parallel build failed")
+	errLintBisect                          = errors.New("error during lint bisect")
 )
 
 var curDir = func() string {
@@ -449,14 +456,111 @@ func Tools() (err error) {
 	return nil
 }
 
+func lintArgs(args ...string) []string {
+	returnedArgs := []string{"-j", fmt.Sprintf("%v", concurrency), fmt.Sprintf(
+		"--deadline=%s", linterDeadline.String())}
+	returnedArgs = append(returnedArgs, args...)
+	return returnedArgs
+}
+
 // Lint runs gometalinter for code quality. CI will run this before accepting PRs.
 func Lint() error {
 	mg.Deps(Tools)
-	args := []string{"-j", fmt.Sprintf("%v", concurrency), fmt.Sprintf(
-		"--deadline=%s", linterDeadline.String()),
-		"run",
+	extraArgs := lintArgs("run")
+	extraArgs = append(extraArgs, goDirs...)
+	return sh.RunV("golangci-lint", extraArgs...)
+}
+
+// LintBisect runs the linters one directory at a time.
+// It is useful for finding problems where golangci-lint won't compile and
+// doesn't emit an error message.
+func LintBisect() error {
+	errs := []error{}
+	for _, goDir := range goDirs {
+		fmt.Println("Linting:", goDir)
+		err := sh.RunV("golangci-lint", lintArgs("run", goDir)...)
+		if err != nil {
+			fmt.Println("LINT ERROR IN:", goDir)
+			errs = append(errs, err)
+		}
 	}
-	return sh.RunV("golangci-lint", append(args, goDirs...)...)
+	if len(errs) > 0 {
+		return errLintBisect
+	}
+	return nil
+}
+
+// listLinters gets the golangci-lint config
+func listLinters() ([]string, error) {
+	cmd := exec.Command("golangci-lint", "linters")
+	output, err := cmd.Output()
+	if err != nil {
+		return []string{}, errors.Wrap(err, "golangci-lint linters failed to run")
+	}
+	bio := bufio.NewReader(bytes.NewBuffer(output))
+	linters := []string{}
+	for {
+		line, _ := bio.ReadString('\n')
+		line = strings.Trim(line, " \n\t")
+		if line == "" {
+			continue
+		}
+		if line == "Enabled by your configuration linters:" {
+			continue
+		}
+		if line == "Disabled by your configuration linters:" {
+			// Done
+			break
+		}
+		linter := strings.Split(line, ":")[0]
+		linter = strings.Split(linter, "(")[0]
+		linter = strings.Trim(linter, " \n\t")
+		linters = append(linters, linter)
+	}
+	return linters, nil
+}
+
+// LintersBisect runs all linters in golangci-lint one at a time.
+// It is useful find broken linters.
+func LintersBisect() error {
+	linters, err := listLinters()
+	if err != nil {
+		return errors.Wrap(err, "LintersBisect: listLinters failed")
+	}
+	errs := map[string]error{}
+
+	// Annoyingly, we have to override .golangci.yml to allow us to pick linters
+	// one by one.
+	golangCi := make(map[string]interface{})
+	_ = yaml.Unmarshal(must(ioutil.ReadFile(".golangci.yml")), golangCi)
+	delete(golangCi, "linters")
+	tempConfig, err := ioutil.TempFile("", ".golangci.*.yml")
+	if err != nil {
+		return errors.Wrap(err, "LintersBisect: TempFile failed")
+	}
+	_ = must(tempConfig.Write(must(yaml.Marshal(golangCi))))
+	defer os.Remove(tempConfig.Name())
+
+	for _, linter := range linters {
+		extraArgs := lintArgs("run",
+			fmt.Sprintf("--config=%s", tempConfig.Name()),
+			"--disable-all",
+			fmt.Sprintf("--enable=%s", linter))
+		extraArgs = append(extraArgs, goDirs...)
+		err := sh.RunV("golangci-lint", extraArgs...)
+		if err != nil {
+			errs[linter] = err
+		}
+	}
+
+	if len(errs) > 0 {
+		for linter := range errs {
+			fmt.Println("FAILED LINTER:", linter)
+		}
+
+		return errLintBisect
+	}
+	return nil
 }
 
 // fmt runs golangci-lint with the formatter options.
@@ -647,7 +751,7 @@ func doReleaseBin(OSArch string) func() error {
 }
 
 // ReleaseBin builds cross-platform release binaries under the bin/ directory.
-// nolint:gocritic
+//nolint:gocritic
 func ReleaseBin(OSArch string) error {
 	return doReleaseBin(OSArch)()
 }
@@ -663,7 +767,7 @@ func ReleaseBinAll() error {
 }
 
 // Release builds release archives under the release/ directory.
-// nolint:gocritic
+//nolint:gocritic
 func doRelease(OSArch string) func() error {
 	platform, ok := platformsLookup[OSArch]
 	if !ok {
@@ -704,6 +808,20 @@ func doRelease(OSArch string) func() error {
 	}
 }
 
+// PlatformTargets prints the list of target platforms
+func PlatformTargets() error {
+	platforms := make([]string, 0, len(platformsLookup))
+	for platform := range platformsLookup {
+		platforms = append(platforms, platform)
+	}
+	sort.Strings(platforms)
+	for _, platform := range platforms {
+		fmt.Println(platform)
+	}
+	return nil
+}
+
+// Release a binary archive for a specific platform
 // nolint:gocritic
 func Release(OSArch string) error {
 	return doRelease(OSArch)()

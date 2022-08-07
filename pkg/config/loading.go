@@ -68,9 +68,9 @@ func configMapMerge(left, right map[string]interface{}) {
 	}
 }
 
-// ConfigDecoder returns the decoder for config maps.
+// Decoder returns the decoder for config maps.
 //nolint:exhaustruct
-func ConfigDecoder(target interface{}, allowUnused bool) (*mapstructure.Decoder, error) {
+func Decoder(target interface{}, allowUnused bool) (*mapstructure.Decoder, error) {
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		ErrorUnused: !allowUnused,
 		DecodeHook:  mapstructure.ComposeDecodeHookFunc(MapStructureDecodeHookFunc(), mapstructure.TextUnmarshallerHookFunc()),
@@ -90,7 +90,7 @@ func LoadAndSanitizeConfig(configData []byte) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "LoadAndSanitizeConfig: failed")
 	}
-	// TODO: actually sanitize
+
 	sanitized, err := yaml.Marshal(configMap)
 	if err != nil {
 		return "", errors.Wrap(err, "LoadAndSanitizeConfig: YAML reserialization failed")
@@ -99,6 +99,8 @@ func LoadAndSanitizeConfig(configData []byte) (string, error) {
 	return string(sanitized), nil
 }
 
+// Load loads a configuration file from the supplied bytes.
+// nolint: forcetypeassert,funlen,cyclop
 func Load(configData []byte) (*Config, error) {
 	defaultMap := loadDefaultConfigMap()
 	configMap, err := loadConfigMap(configData)
@@ -111,7 +113,7 @@ func Load(configData []byte) (*Config, error) {
 
 	// Do an initial decode to detect any unused key errors
 	cfg := new(Config)
-	decoder, err := ConfigDecoder(cfg, false)
+	decoder, err := Decoder(cfg, false)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load: config map decoder failed to initialize")
 	}
@@ -156,7 +158,7 @@ func Load(configData []byte) (*Config, error) {
 
 	// Do the decode after inheritance and allow unused key errors.
 	cfg = new(Config)
-	decoder, err = ConfigDecoder(cfg, true)
+	decoder, err = Decoder(cfg, true)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load: second-pass config map decoder failed to initialize")
 	}
