@@ -11,12 +11,12 @@ import (
 	"unsafe"
 
 	"github.com/prometheus/common/model"
-
+	"github.com/samber/lo"
 	"github.com/wrouesnel/poller_exporter/pkg/certutils"
 	"github.com/wrouesnel/poller_exporter/pkg/config"
-	"github.com/wrouesnel/poller_exporter/pkg/errutils"
-	. "gopkg.in/check.v1"
 	"gopkg.in/yaml.v3"
+
+	. "gopkg.in/check.v1"
 )
 
 // Hook up gocheck into the "go test" runner.
@@ -41,18 +41,28 @@ func GetPoolCertificates(pool *x509.CertPool) []*x509.Certificate {
 	return poolCerts
 }
 
-func (s *TLSCACertsSuite) TestLoadFullExample(c *C) {
-	data := errutils.Must(ioutil.ReadFile("test_data/tls_cacerts/system_file_inline.yml"))
+func (s *TLSCACertsSuite) loadCertsFile(c *C, filename string) *x509.CertPool {
+	data := lo.Must(ioutil.ReadFile(filename))
+	intfMap := []interface{}{}
+	c.Check(yaml.Unmarshal(data, &intfMap), IsNil, Commentf("YAML decode failed"))
+
 	pool := new(config.TLSCertificatePool)
+	decoder, err := config.ConfigDecoder(pool)
+	c.Assert(err, IsNil, Commentf("Config decoder initialization failed"))
 
-	err := yaml.Unmarshal(data, pool)
-	c.Assert(err, IsNil)
+	err = decoder.Decode(intfMap)
+	c.Assert(err, IsNil, Commentf("Config decoding failed"))
 
-	poolCerts := GetPoolCertificates(pool.CertPool)
+	return pool.CertPool
+}
+
+func (s *TLSCACertsSuite) TestLoadFullExample(c *C) {
+	pool := s.loadCertsFile(c, "test_data/tls_cacerts/system_file_inline.yml")
+	poolCerts := GetPoolCertificates(pool)
 
 	// Check the inline and file certs are there
-	otherCert := errutils.Must(certutils.LoadCertificatesFromPem(errutils.Must(ioutil.ReadFile("test_data/tls_cacerts/other.crt"))))[0]
-	someCert := errutils.Must(certutils.LoadCertificatesFromPem(errutils.Must(ioutil.ReadFile("test_data/tls_cacerts/some.crt"))))[0]
+	otherCert := lo.Must(certutils.LoadCertificatesFromPem(lo.Must(ioutil.ReadFile("test_data/tls_cacerts/other.crt"))))[0]
+	someCert := lo.Must(certutils.LoadCertificatesFromPem(lo.Must(ioutil.ReadFile("test_data/tls_cacerts/some.crt"))))[0]
 
 	otherCertFound := false
 	someCertFound := false
@@ -72,17 +82,12 @@ func (s *TLSCACertsSuite) TestLoadFullExample(c *C) {
 }
 
 func (s *TLSCACertsSuite) TestLoadNoSystem(c *C) {
-	data := errutils.Must(ioutil.ReadFile("test_data/tls_cacerts/file_inline.yml"))
-	pool := new(config.TLSCertificatePool)
-
-	err := yaml.Unmarshal(data, pool)
-	c.Assert(err, IsNil)
-
-	poolCerts := GetPoolCertificates(pool.CertPool)
+	pool := s.loadCertsFile(c, "test_data/tls_cacerts/file_inline.yml")
+	poolCerts := GetPoolCertificates(pool)
 
 	// Check the inline and file certs are there
-	otherCert := errutils.Must(certutils.LoadCertificatesFromPem(errutils.Must(ioutil.ReadFile("test_data/tls_cacerts/other.crt"))))[0]
-	someCert := errutils.Must(certutils.LoadCertificatesFromPem(errutils.Must(ioutil.ReadFile("test_data/tls_cacerts/some.crt"))))[0]
+	otherCert := lo.Must(certutils.LoadCertificatesFromPem(lo.Must(ioutil.ReadFile("test_data/tls_cacerts/other.crt"))))[0]
+	someCert := lo.Must(certutils.LoadCertificatesFromPem(lo.Must(ioutil.ReadFile("test_data/tls_cacerts/some.crt"))))[0]
 
 	otherCertFound := false
 	someCertFound := false
@@ -103,13 +108,8 @@ func (s *TLSCACertsSuite) TestLoadNoSystem(c *C) {
 }
 
 func (s *TLSCACertsSuite) TestLoadNone(c *C) {
-	data := errutils.Must(ioutil.ReadFile("test_data/tls_cacerts/none.yml"))
-	pool := new(config.TLSCertificatePool)
-
-	err := yaml.Unmarshal(data, pool)
-	c.Assert(err, IsNil)
-
-	poolCerts := GetPoolCertificates(pool.CertPool)
+	pool := s.loadCertsFile(c, "test_data/tls_cacerts/none.yml")
+	poolCerts := GetPoolCertificates(pool)
 	c.Check(len(poolCerts), Equals, 0)
 }
 
@@ -118,12 +118,13 @@ type ConfigOverrideSuite struct{}
 var _ = Suite(&ConfigOverrideSuite{})
 
 func (cos *ConfigOverrideSuite) TestTLSOverride(c *C) {
-	conf := errutils.Must(config.LoadFromFile("test_data/config_override/config_override_tls.yml"))
+	conf, err := config.LoadFromFile("test_data/config_override/config_override_tls.yml")
+	c.Assert(err, IsNil, Commentf("%v", err))
 
-	globalCerts := GetPoolCertificates(conf.TLSCACerts.CertPool)
-	systemPool := GetPoolCertificates(errutils.Must(x509.SystemCertPool()))
+	globalCerts := GetPoolCertificates(conf.HostDefault.ServiceDefaults.TLSCACerts.CertPool)
+	systemPool := GetPoolCertificates(lo.Must(x509.SystemCertPool()))
 
-	hostConfigs := map[string]config.HostConfig{}
+	hostConfigs := map[string]*config.HostConfig{}
 
 	for _, host := range conf.Hosts {
 		hostConfigs[host.Hostname] = host
@@ -150,12 +151,13 @@ func (cos *ConfigOverrideSuite) TestTLSOverride(c *C) {
 }
 
 func (cos *ConfigOverrideSuite) TestTLSOverrideWithNoSpecifiedDefaults(c *C) {
-	conf := errutils.Must(config.LoadFromFile("test_data/config_override/config_override_tlsdefault.yml"))
+	conf, err := config.LoadFromFile("test_data/config_override/config_override_tlsdefault.yml")
+	c.Assert(err, IsNil, Commentf("%v", err))
 
-	globalCerts := GetPoolCertificates(conf.TLSCACerts.CertPool)
-	systemPool := GetPoolCertificates(errutils.Must(x509.SystemCertPool()))
+	globalCerts := GetPoolCertificates(conf.HostDefault.ServiceDefaults.TLSCACerts.CertPool)
+	systemPool := GetPoolCertificates(lo.Must(x509.SystemCertPool()))
 
-	hostConfigs := map[string]config.HostConfig{}
+	hostConfigs := map[string]*config.HostConfig{}
 
 	for _, host := range conf.Hosts {
 		hostConfigs[host.Hostname] = host
@@ -187,30 +189,37 @@ var _ = Suite(&ConfigExpected{})
 
 // TestCompleteConfig loads poller_exporter.complete.yml and checks the loaded file matches.
 func (ce *ConfigExpected) TestCompleteConfig(c *C) {
-	conf := errutils.Must(config.LoadFromFile("../../poller_exporter.complete.yml"))
+	systemPool := GetPoolCertificates(lo.Must(x509.SystemCertPool()))
 
-	c.Check(conf.BasicAuthUsername, Equals, "admin")
-	c.Check(conf.BasicAuthPassword, Equals, "my-pass")
+	conf, err := config.LoadFromFile("../../poller_exporter.complete.yml")
+	c.Assert(err, IsNil, Commentf("%v", err))
 
-	c.Check(conf.TLSCertificatePath, Equals, "test_data/localhost.crt")
-	c.Check(conf.TLSKeyPath, Equals, "test_data/localhost.pem")
+	c.Check(conf.Web.TelemetryPath, Equals, "/metrics")
+	c.Check(conf.Web.ReadHeaderTimeout, Equals, model.Duration(time.Second))
 
-	globalCerts := GetPoolCertificates(conf.TLSCACerts.CertPool)
-	systemPool := GetPoolCertificates(errutils.Must(x509.SystemCertPool()))
+	c.Check(conf.Web.Listen[0].String(), Equals, lo.Must(config.NewURL("unix:///var/run/server.socket")).String())
+	c.Check(conf.Web.Listen[1].String(), Equals, lo.Must(config.NewURL("tcp://0.0.0.0:9115")).String())
+	c.Check(conf.Web.Listen[2].String(), Equals, lo.Must(config.NewURL("tcps://0.0.0.0:9115?tlscert=/path/to/file/in/pem/format.crt&tlskey=/path/to/file/in/pem/format.pem")).String())
+	c.Check(conf.Web.Listen[3].String(), Equals, lo.Must(config.NewURL("unixs:///var/run/server.socket?tlscert=/path/to/file/in/pem/format.crt&tlskey=/path/to/file/in/pem/format.pem")).String())
+	c.Check(conf.Web.Listen[4].String(), Equals, lo.Must(config.NewURL("tcps://0.0.0.0:9115?tlscert=/path/to/file/in/pem/format.crt&tlskey=/path/to/file/in/pem/format.pem&tlsclientca=/path/to/cert")).String())
 
-	// Check TLS CA certs looks like the system pool
-	c.Check(len(globalCerts), Equals, len(systemPool))
+	c.Check(conf.Web.Auth.BasicAuthCredentials[0].Username, Equals, "admin")
+	c.Check(conf.Web.Auth.BasicAuthCredentials[0].Password, Equals, "my-pass")
 
-	c.Check(conf.PollFrequency, Equals, model.Duration(60*time.Second))
-	c.Check(conf.Timeout, Equals, model.Duration(40*time.Second))
-	c.Check(conf.MaxBytes, Equals, uint64(8192))
+	c.Check(conf.Collector.MaxConnections, Equals, 50)
 
-	c.Check(conf.PingDisable, Equals, false)
-	c.Check(conf.PingCount, Equals, uint64(5))
-	c.Check(conf.PingTimeout, Equals, model.Duration(time.Second))
+	c.Check(conf.HostDefault.PollFrequency, Equals, model.Duration(time.Second*30))
+	c.Check(conf.HostDefault.PingDisable, Equals, false)
+	c.Check(conf.HostDefault.PingTimeout, Equals, model.Duration(time.Second))
+	c.Check(conf.HostDefault.PingCount, Equals, uint64(3))
 
-	hostConfigs := map[string]config.HostConfig{}
+	c.Check(conf.HostDefault.ServiceDefaults.Timeout, Equals, model.Duration(time.Second*10))
+	c.Check(conf.HostDefault.ServiceDefaults.MaxBytes, Equals, uint64(4096))
+	c.Check(conf.HostDefault.ServiceDefaults.TLSEnable, Equals, false)
+	c.Check(len(GetPoolCertificates(conf.HostDefault.ServiceDefaults.TLSCACerts.CertPool)), Equals, len(systemPool)+2, Commentf("Check TLS CA certs looks like the system pool + 2 extra certs"))
 
+	// Start checking hosts - convert to map up front
+	hostConfigs := map[string]*config.HostConfig{}
 	for _, host := range conf.Hosts {
 		hostConfigs[host.Hostname] = host
 	}
@@ -222,6 +231,11 @@ func (ce *ConfigExpected) TestCompleteConfig(c *C) {
 	c.Check(hostConf.PingTimeout, Equals, model.Duration(5*time.Second))
 	c.Check(hostConf.PingCount, Equals, uint64(2))
 
+	c.Check(hostConf.ServiceDefaults.Timeout, Equals, model.Duration(time.Second*9))
+	c.Check(hostConf.ServiceDefaults.MaxBytes, Equals, uint64(1024))
+	c.Check(hostConf.ServiceDefaults.TLSEnable, Equals, true)
+	c.Check(len(GetPoolCertificates(hostConf.ServiceDefaults.TLSCACerts.CertPool)), Equals, 1, Commentf("Check sngle default cert"))
+
 	basicChecks := hostConf.BasicChecks[0]
 	c.Check(basicChecks.Name, Equals, "SMTP")
 	c.Check(basicChecks.Protocol, Equals, "tcp")
@@ -230,7 +244,7 @@ func (ce *ConfigExpected) TestCompleteConfig(c *C) {
 	c.Check(basicChecks.TLSEnable, Equals, true)
 
 	serviceCerts := GetPoolCertificates(basicChecks.TLSCACerts.CertPool)
-	c.Check(len(serviceCerts), Equals, len(systemPool)+2)
+	c.Check(len(serviceCerts), Equals, 1)
 
 	crChecks := hostConf.ChallengeResponseChecks[0]
 	c.Check(crChecks.Name, Equals, "CustomDaemon")
@@ -238,37 +252,37 @@ func (ce *ConfigExpected) TestCompleteConfig(c *C) {
 	c.Check(crChecks.Port, Equals, uint64(22))
 	c.Check(crChecks.Timeout, Equals, model.Duration(6*time.Second))
 	c.Check(crChecks.TLSEnable, Equals, false)
+	c.Check(len(GetPoolCertificates(crChecks.TLSCACerts.CertPool)), Equals, 2, Commentf("challenge_response has more certs"))
 
-	crServiceCerts := GetPoolCertificates(crChecks.TLSCACerts.CertPool)
-	c.Check(len(crServiceCerts), Equals, 2)
-
-	c.Check(crChecks.ChallengeLiteral, Equals, []byte("MY_UNIQUE_HEADER"))
+	c.Check(crChecks.ChallengeString, Equals, "MY_UNIQUE_HEADER")
+	c.Check([]byte(crChecks.ChallengeBinary), DeepEquals, []byte{114, 149, 9, 49, 56, 189, 30, 220, 186, 59, 139, 28, 127, 66, 178, 97})
 	c.Check(crChecks.ResponseRegex.String(), Equals, regexp.MustCompile("RESPONSE_HEADER").String())
-	c.Check(crChecks.ResponseLiteral, Equals, []byte("literal-value"))
-	c.Check(crChecks.MaxBytes, Equals, 65535)
+	c.Check(crChecks.ResponseLiteral, Equals, "literal-value")
+	c.Check([]byte(crChecks.ResponseBinary), DeepEquals, []byte{114, 149, 9, 49, 56, 189, 30, 220, 186, 59, 139, 28, 127, 66, 178, 97})
+	c.Check(crChecks.MaxBytes, Equals, uint64(65535))
 
 	httpChecks := hostConf.HTTPChecks[0]
-	c.Check(httpChecks.Name, Equals, "CustomDaemon")
+	c.Check(httpChecks.Name, Equals, "MyHTTPServer")
 	c.Check(httpChecks.Protocol, Equals, "tcp")
-	c.Check(httpChecks.Port, Equals, uint64(22))
-	c.Check(httpChecks.Timeout, Equals, model.Duration(6*time.Second))
-	c.Check(httpChecks.TLSEnable, Equals, false)
+	c.Check(httpChecks.Port, Equals, uint64(443))
+	c.Check(httpChecks.Timeout, Equals, model.Duration(50*time.Second))
+	c.Check(httpChecks.TLSEnable, Equals, true)
 
 	httpServiceCerts := GetPoolCertificates(httpChecks.TLSCACerts.CertPool)
-	c.Check(len(httpServiceCerts), Equals, uint64(1))
+	c.Check(len(httpServiceCerts), Equals, 1)
 
-	c.Check(httpChecks.ChallengeLiteral, Equals, []byte("some-data"))
+	c.Check(httpChecks.ChallengeString, Equals, "some-data")
+	c.Check([]byte(httpChecks.ChallengeBinary), DeepEquals, []byte{114, 149, 9, 49, 56, 189, 30, 220, 186, 59, 139, 28, 127, 66, 178, 97})
 	c.Check(httpChecks.ResponseRegex.String(), Equals, regexp.MustCompile("^<field-tag>").String())
-	c.Check(httpChecks.ResponseLiteral, Equals, []byte("<html>"))
+	c.Check(httpChecks.ResponseLiteral, Equals, "<html>")
+	c.Check([]byte(httpChecks.ResponseBinary), DeepEquals, []byte{114, 149, 9, 49, 56, 189, 30, 220, 186, 59, 139, 28, 127, 66, 178, 97})
 	c.Check(httpChecks.MaxBytes, Equals, uint64(131072))
 
 	c.Check(httpChecks.Verb, Equals, "GET")
 	c.Check(httpChecks.URL.String(), Equals, "http://vhost/query-path?with_paramters=1")
-	testRange := &config.HTTPStatusRange{}
-	c.Check(testRange.FromString("200 201 300-399"), IsNil)
+	testRange := config.HTTPStatusRange{}
+	c.Check(testRange.UnmarshalText([]byte("200 201 300-399")), IsNil)
 	c.Check(httpChecks.SuccessStatuses, DeepEquals, testRange)
-
-	c.Check(httpChecks.BasicAuth, Equals, true)
-	c.Check(httpChecks.Username, Equals, "monitor")
-	c.Check(httpChecks.Password, Equals, "monitoring")
+	c.Check(httpChecks.RequestAuth.BasicAuth.Username, Equals, "monitor")
+	c.Check(httpChecks.RequestAuth.BasicAuth.Password, Equals, "monitoring")
 }

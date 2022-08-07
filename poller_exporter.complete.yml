@@ -1,27 +1,125 @@
 # This is *every* poller_exporter config option in one-file.
 # This file should not normally used this way - specific only what you need.
 
-# if specific then HTTP basic authentication is enabled on the web interface
-# and metrics endpoint.
-username: admin
-password: my-pass
+web:
+  # path Prometheus metrics are exposed under
+  telemetry_path: /metrics
+  # timeout to receive headers from connections - prevent Slow Loris
+  read_header_timeout: 1s
+  # list of addresses to listen on
+  listen:
+    # open a Unix socket file on /var/run/server
+    - unix:///var/run/server.socket
+    # listen on tcp port 9115.
+    - tcp://0.0.0.0:9115
+    # listen on port 9115 with TLS
+    - tcps://0.0.0.0:9115?tlscert=/path/to/file/in/pem/format.crt&tlskey=/path/to/file/in/pem/format.pem
+    # listen on Unix socket file on /var/run/server with TLS
+    - unixs:///var/run/server.socket?tlscert=/path/to/file/in/pem/format.crt&tlskey=/path/to/file/in/pem/format.pem
+    # listen on 9115 with TLS and TLS client auth
+    - tcps://0.0.0.0:9115?tlscert=/path/to/file/in/pem/format.crt&tlskey=/path/to/file/in/pem/format.pem&tlsclientca=/path/to/cert
 
-# if these parameters are specified, the web interface is hosted with TLS enabled.
-tls_cert: test_data/localhost.crt
-tls_key: test_data/localhost.pem
+  auth:
+    # if specific then HTTP basic authentication is enabled on the web interface
+    # and metrics endpoint.
+    basic_auth:
+      # usernames may be duplicated, which will declare multiple passwords.
+      # multiple usernames may also be specified
+      - username: admin
+        password: my-pass
 
-# tls_cacerts specifies the default certificate pool to use for validating TLS
-# certificates. If unspecified, then defaults to the system pool.
-tls_cacerts:
-  - system
 
-poll_frequency: 60s # default frequency to poll a host's services.
-timeout: 40s # default service timeout for connections to each service defined for a host
-max_bytes: 8192 # default maximum bytes to read from connected sockets when looking for responses.
+collector:
+  # maximum number of outbound connections to make to hosts at any one time
+  max_connections: 50
 
-disable_ping: false # disable pinging this host. Status will remain "unknown" in metrics.
-ping_count: 5 # default number of ICMP pings to send before considering a host down
-ping_timeout: 1s # default time to wait for ICMP ping reply before failing a ping
+# default settings for all hosts
+host_defaults:
+  # default frequency to poll a host's services.
+  poll_frequency: 30s
+  # disable pinging this host. Status will remain "unknown" in metrics.
+  disable_ping: false
+  # default time to wait for ICMP ping reply before failing a ping
+  ping_timeout: 1s
+  # default number of ICMP pings to send before considering a host down
+  ping_count: 3
+
+  # defaults for basic services
+  service_defaults:
+    # timeout for service
+    timeout: 10s
+    # proxy specifies the proxy server to make outbound connections through.
+    # It can be specified globally, per-host or per-service and supports
+    # SOCKS5 and HTTP CONNECT methods.
+    # The special value "environment" (which is the default) configures the
+    # proxy from the all_proxy and no_proxy environment variables, "direct"
+    # disables any proxy usage.
+    # Otherwise, a proxy URL may be provided directly.
+    proxy: environment
+    # proxy_auth, if specified, configures authentication for a proxy server.
+    proxy_auth:
+      username:
+      password:
+    # max_bytes to read when looking for responses
+    max_bytes: 4096
+    # http_enable_redirects defaults to false - the HTTP checker will *not* follow
+    # redirects by default. redirects mean that the total amount of outbound
+    # bytes to satisfy the request will not be accurately tracked.
+    http_enable_redirects: false
+    # http_max_redirects is the total number of redirects to follow. Defaults
+    # to 10, which is the Go default.
+    http_max_redirects: 10
+    # http_headers are headers to send with HTTP requests. Default is none.
+    # Note:
+    http_headers: []
+    # http_success_status is HTTP status codes to treat as success for polling
+    # an HTTP service.
+    http_success_status: 200-299
+
+    # TLS enable
+    tls_enable: false
+    # TLS certificate CAs to use.
+    tls_cacerts:
+      # system means use the system authorities
+      - system
+      # a filename adds certificates in that file to the valid list
+      - test_data/tls_cacerts/other.crt
+      # certificates may also be specified inline.
+      - |
+        -----BEGIN CERTIFICATE-----
+        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
+        BjbonWhHde22UQ==
+        -----END CERTIFICATE-----
+  
+
 
 # List of hosts which are to be polled.
 # Hosts should only occur once - duplicates will have the second duplicate
@@ -33,6 +131,14 @@ hosts:
     ping_timeout: 5s # override global ping_timeout for just this host
     ping_count: 2 # override global ping_count for just this host
 
+    # service_defaults can also be overridden per host as it can globally.
+    service_defaults:
+      timeout: 9s
+      max_bytes: 1024
+      tls_enable: true
+      tls_cacerts:
+        - test_data/tls_cacerts/some.crt
+
     # basic checks simply test whether a TCP port is open. They will also check
     # the status of TLS certificates if requested.
     basic_checks:
@@ -40,46 +146,9 @@ hosts:
         proto: tcp # proto is either tcp or udp. Only `tcp` is useful.
         port: 465 # port is the port number to connect to.
         timeout: 5s # timeout overrides the global default service timeout
-        tls: true # controls whether TLS is started on connection and certificate/expiry/validity metrics collected
+        tls_enable: true # controls whether TLS is started on connection and certificate/expiry/validity metrics collected
         tls_cacerts: # tls_cacert specifies to try validating the certificate from the given list
-        # system specifies to use a pool containing the system certificates
-        # and to append to it. Omitting it uses a blank pol.
-        - system
-        # Certificates can either be a file...
         - test_data/tls_cacerts/other.crt
-        # Or specified as inline strings
-        - |
-          -----BEGIN CERTIFICATE-----
-          MIIFZDCCA0ygAwIBAgIIFwhfn8u78/4wDQYJKoZIhvcNAQELBQAwPDEVMBMGA1UE
-          BhMMVGVzdCBDb3VudHJ5MREwDwYDVQQKEwhUZXN0IE9yZzEQMA4GA1UECxMHVGVz
-          dCBPVTAeFw0yMjA4MDUwNjM5NThaFw0yMzA4MDUxMjM5NThaMEsxFTATBgNVBAYT
-          DFRlc3QgQ291bnRyeTERMA8GA1UEChMIVGVzdCBPcmcxEDAOBgNVBAsTB1Rlc3Qg
-          T1UxDTALBgNVBAMTBHNvbWUwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoIC
-          AQCjy5Pp/3OX4f1t+ktc4uiS5jj9yj9c6Su8+5jXBDm83AKGx8nxP+b1mL8ZrJCt
-          2b4wBlwuSuko92ad0ovdbFkWXNReQb4Mo1oRPnB5PiNgUeQ9BQbKTJAJ5Aq0haJF
-          tH7XXRjp9ZNihFFaOKU26XGkv+qpyXNUY0dXqhl82G8hmmjdMqT8e04D0mjnC08j
-          saUkKng/wS/m4g+zskY9/ChHVhh+KgL/B9/eT2zk4yN2PWiyrzYkPrr11FM4PfzS
-          Z1ZI0hU1zy6v1Z5h0yg3pVyciVy5lCX702BOBCGzU/LqTYro+ibDlfE6CEh/t66i
-          AzzZorQbQ51/s8pNfPjySneq0ZTARm7dY/dm6od+0kpx+kgJpB03asav27p+FR6n
-          dBjk96Hq993Lg44NAQ/l3O8kCqiMMRn7FEcevNwn8auPsN1lVYeC9LJos2OixqZB
-          H9P+h5z5HI8HCHt+4KiIPCsp2dmZ5psHe6Wu6y0AfWdowlJg7p/JS4Gt4vLU+ttA
-          zsErh0dpIeK6OMtusXetBWFz43UWB+x9pTVWLyuVqSw6b6YebgffKAvjNAMvs4pa
-          41mzheGy3V79tmN99yyUOgFGkfA6fziPsuZF60NsVnPiihMS/GQVf+5WcINNtpon
-          p+MYxHU4ww2VtQSUV7WHQTYEqgrHr3k4ZJt3iGG/PJ1bswIDAQABo1swWTAOBgNV
-          HQ8BAf8EBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1Ud
-          EwEB/wQCMAAwGgYDVR0RBBMwEYIEc29tZYEJdGVzdEB0ZXN0MA0GCSqGSIb3DQEB
-          CwUAA4ICAQBVVeuiEHqkOl57vWp/EAZ4qRHLPkk7vS09b7wK4BE7RHZKLaZ7d/+o
-          rQS0T+WXuNyRRmabjyqWrxHJQvPC4q0670xI1rgHOwOfp9quuOOeDfZ4mIRy/Szy
-          eVNb7UHvIlKIjfUNM1B0hcMslXPghxJIoJHPGSn33K87RT3S/uaD5HptjrfFP2WV
-          GurMHLVkKzk2A38tIF96Nwt6MSLKshjqcKgNIneOS5id105AMoIGgUw8dsTeEJ1Z
-          /3Yfi8Rdy/Hwwmdfn9Wa7X7mlYmu1Xh7BJaw1XzlNr9cYP93CGDLr0oKwNt6oTf4
-          1F/Qx37UeEKpIugChV0E7JjZZUyPOo5iaZvaLgMMH3qb/+cwrcSIzcDfzAlB0eeJ
-          2e23mgdhf1ZtDpinUYehjGWR+QGveCRX67xpeEnD+Wol88hkmnfCCPW0baA+dBdS
-          JniWLtQoFutfo7GfKTwDalY2RFj3jRSMEtSNBBOJ54MT8jQXcFazJKySomSO76HC
-          xcK+qruWtqvjCX9g2hrD4OsKqJhiVq5udn5vmAYiAHBLefUDqwimcWMkGMi/SU8d
-          CoEkVLSqPkhvziauZIGA1UKIE13unA9c3BR1+AhNuaMjP0prWM2gahsg68OV7hqW
-          q+otV1FBMHZr/Da5UUh70vKuKp27a3+q0VckVYS4WZMoMSZxwgEtoA==
-          -----END CERTIFICATE-----
 
     # challenge-response checks send a challenge to the service and look for a response, returning
     # metrics indicating whether it was found
@@ -89,19 +158,25 @@ hosts:
         proto: tcp
         port: 22
         timeout: 6s
-        tls: false
+        tls_enable: false
         tls_cacerts:
         - test_data/tls_cacerts/other.crt
         - test_data/tls_cacerts/some.crt
         # these settings are added for challenge_response_checks
         challenge: MY_UNIQUE_HEADER # challenge is a byte-string to send to the service after connecting
                                     # and after TLS has been established (if enabled).
+        # supercedes challenge and may contain a base64 encoded string of bytes
+        # to send to the port on connect
+        challenge_b64: cpUJMTi9Hty6O4scf0KyYQ==
         response_re: RESPONSE_HEADER # response_re is a golang regex which will be run against
                                      # the raw bytes returned after sending the challenge upto
                                      # max_bytes
         response: literal-value # response is an alternative to response_re and is a prefix
                                 # looked for in the raw bytes returned after sending challenge.
                                 # A typical use would be the SSH-2.0- header.
+        # supercedes resonse and may contain a base64 encoded string of bytes to match as
+        # a prefix on the returned bytes
+        response_b64: cpUJMTi9Hty6O4scf0KyYQ==
         max_bytes: 65535 # override global max_bytes value for just this service.
     # http checks are like challenge-response checks, but assume the other end of the service is
     # an HTTP service that understands HTTP semantics. All challenge/response handling is in the
@@ -112,12 +187,16 @@ hosts:
         proto: tcp
         port: 443
         timeout: 50s
-        tls: true
-        tls_cacert:
+        tls_enable: true
+        tls_cacerts:
         - test_data/tls_cacerts/other.crt
+        # http pollers user challenge specifications for HTTP request bodies
         challenge: some-data
+        challenge_b64: cpUJMTi9Hty6O4scf0KyYQ==
+        # http pollers use response specifications for reading the HTTP response body
         response_re: ^<field-tag>
-        response: <html>  # response tends not to be very useful with HTTP services
+        response: <html>
+        response_b64: cpUJMTi9Hty6O4scf0KyYQ==
         max_bytes: 131072 # max_bytes usually should be increased substantially. For HTTP services this
                           # is counted against the response body only.
         # these settings are added
@@ -125,9 +204,23 @@ hosts:
         url: http://vhost/query-path?with_paramters=1 # url is the URL that is passed in the HTTP headers.
                                                       # It can be used to test virtual hosts without needing
                                                       # correct DNS. Scheme has no effect (use the ssl setting).
-        success_status: 200 201 300-399 # success_status is a collection of codes to count as the HTTP service
+        # Headers allows setting HTTP request heasders
+        http_headers:
+        # Headers are specified as a list of maps. Duplicate names will be added
+        # to the same header in the order they are specified using regular HTTP semantics.
+        - X-Some-Header: Some-Header-Value
+        # Important: redirects will lead to an inaccurate count of of request-bytes as
+        # multiple redirects may establish new connections to other hosts, which will
+        # not be tracked.
+        http_enable_redirects: true
+        # individual service max redirects
+        http_max_redirects: 11
+        http_success_status: 200 201 300-399 # success_status is a collection of codes to count as the HTTP service
                                         # being "up" and can be specified as a space separated list of values or
                                         # ranges.
-        auth: true  # send basic auth headers to the service
-        username: monitor # username to send when basic auth is enabled
-        password: monitoring # password to send when basic auth is enabled
+
+        auth:
+          # If specified, the request will be sent with basic auth.
+          basic_auth:
+            username: monitor # username to send when basic auth is enabled
+            password: monitoring # password to send when basic auth is enabled

@@ -2,6 +2,34 @@ run:
   build-tags:
     - mage
 
+linters:
+  enable-all: true
+  disable:
+    # Deprecated
+    - golint
+    - ireturn
+    - interfacer
+    - exhaustivestruct
+    - maligned
+    - scopelint
+    # Doesn't work
+    - promlinter
+    # Not used
+    - paralleltest
+    - nlreturn
+    - wsl
+    - lll
+    - gofumpt
+    - gci
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - funlen
+        - varnamelen
+
 linters-settings:
   varnamelen:
     # The longest distance, in source lines, that is being considered a "small scope." (defaults to 5)

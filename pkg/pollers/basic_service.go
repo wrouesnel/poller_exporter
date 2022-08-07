@@ -1,9 +1,14 @@
 package pollers
 
 import (
+	"context"
 	"fmt"
 	"net"
+	"net/url"
 	"time"
+
+	"github.com/samber/lo"
+	"golang.org/x/net/proxy"
 
 	"github.com/pkg/errors"
 
@@ -19,16 +24,16 @@ type BasicService struct {
 	PortOpen      prometheus.Gauge       // Port open metric
 	PortOpenCount *prometheus.CounterVec // Cumulative number of port open checks
 
-	host *Host // The host this service is attached to
-	config.BasicServiceConfig
+	host   *Host // The host this service is attached to
+	config config.BasicServiceConfig
 }
 
 func (s *BasicService) Name() string {
-	return s.BasicServiceConfig.Name
+	return s.config.Name
 }
 
 func (s *BasicService) Port() uint64 {
-	return s.BasicServiceConfig.Port
+	return s.config.Port
 }
 
 func (s *BasicService) Status() Status {
@@ -40,7 +45,7 @@ func (s *BasicService) Host() *Host {
 }
 
 func (s *BasicService) Proto() string {
-	return s.Protocol
+	return s.config.Protocol
 }
 
 func (s *BasicService) Describe(ch chan<- *prometheus.Desc) {
@@ -53,14 +58,15 @@ func (s *BasicService) Collect(ch chan<- prometheus.Metric) {
 }
 
 //nolint:funlen
-func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
-	var poller Poller
+func NewBasicService(host *Host, opts config.BasicServiceConfig) BasePoller {
+	var poller BasePoller
 
 	clabels := prometheus.Labels{
-		"hostname": host.Hostname,
-		"name":     opts.Name,
-		"protocol": opts.Protocol,
-		"port":     fmt.Sprintf("%d", opts.Port),
+		"poller_type": "basic",
+		"hostname":    host.Hostname,
+		"name":        opts.Name,
+		"protocol":    opts.Protocol,
+		"port":        fmt.Sprintf("%d", opts.Port),
 	}
 
 	newBasicService := &BasicService{
@@ -85,10 +91,10 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 			},
 			[]string{"result"},
 		),
-		BasicServiceConfig: opts,
+		config: opts,
 	}
 
-	poller = Poller(newBasicService)
+	poller = BasePoller(newBasicService)
 
 	// If SSL, then return an SSL service instead
 	if opts.TLSEnable {
@@ -125,9 +131,9 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) Poller {
 				[]string{"result"},
 			),
 			tlsRootCAs: opts.TLSCACerts.CertPool,
-			Poller:     poller,
+			BasePoller: poller,
 		}
-		poller = Poller(&newSSLservice) // Turn the SSL service into a Poller
+		poller = BasePoller(&newSSLservice) // Turn the SSL service into a Poller
 	}
 
 	return poller
@@ -146,7 +152,7 @@ func (s *BasicService) Poll() {
 }
 
 // doPoll Implements the real polling functionality, but returns the connection object so other classes can inherit it.
-func (s *BasicService) doPoll() net.Conn {
+func (s *BasicService) doPoll() *PollConnection {
 	l := s.log().With(zap.String("hostname", s.Host().Hostname),
 		zap.Uint64("port", s.Port()),
 		zap.String("name", s.Name()))
@@ -164,38 +170,60 @@ func (s *BasicService) doPoll() net.Conn {
 }
 
 // dialAndScrape connects to the service and collects parameters.
-func (s *BasicService) dialAndScrape() (net.Conn, error) {
+func (s *BasicService) dialAndScrape() (*PollConnection, error) {
 	l := s.log()
-	if s.Timeout == 0 {
+	if s.config.Timeout == 0 {
 		l.Warn("0 deadline set for service. This is probably not what you want as services will flap.")
 	}
 
 	// Set absolute deadline
-	deadline := time.Now().Add(time.Duration(s.Timeout))
-
-	// Dialer deadline
-	dialer := net.Dialer{
-		Deadline: deadline,
-	}
+	deadline := time.Now().Add(time.Duration(s.config.Timeout))
+	// Build context for deadline
+	ctx, ctxCancel := context.WithDeadline(context.Background(), deadline)
 
 	var err error
-	var conn net.Conn
+	var proxyDialer proxy.Dialer
+	switch s.config.Proxy {
+	case config.ProxyEnvironment:
+		l.Debug("Using proxy settings from the environment")
+		proxyDialer = proxy.FromEnvironment()
+	case config.ProxyDirect:
+		l.Debug("Direct connection")
+		proxyDialer = proxy.Direct
+	default:
+		l.Debug("Explicit proxy configured", zap.String("proxy", s.config.Proxy))
+		// config has already checked this URL and we don't want to overdesign it
+		proxyUrl := lo.Must(url.Parse(s.config.Proxy))
+		// proxy package handles default specification
+		proxyDialer, err = proxy.FromURL(proxyUrl, proxy.Direct)
+	}
 
-	conn, err = dialer.Dial(s.Protocol, fmt.Sprintf("%s:%d", s.Host().Hostname, s.Port()))
+	dialer := proxyDialer.(proxy.ContextDialer)
+
+	var conn net.Conn
+	conn, err = dialer.DialContext(ctx, s.config.Protocol, fmt.Sprintf("%s:%d", s.Host().Hostname, s.Port()))
 	if err != nil {
 		s.portOpen = PollStatusFailed
 	} else {
 		s.portOpen = PollStatusSuccess
 	}
 
-	if conn != nil {
-		// Connection deadline
-		if err := conn.SetDeadline(deadline); err != nil {
-			l.Error("Error setting deadline for connection", zap.Error(err))
-		}
+	if conn == nil {
+		ctxCancel() // Pre-cancel the context
+		return nil, errors.Wrap(err, "dialAndScrape failed")
 	}
 
-	return conn, errors.Wrap(err, "dialAndScrape failed")
+	// Set connection deadline
+	if err := conn.SetDeadline(deadline); err != nil {
+		l.Error("Error setting deadline for connection", zap.Error(err))
+	}
+
+	return &PollConnection{
+		Conn:     conn,
+		dialer:   dialer,
+		deadline: deadline,
+		ctx:      ctx,
+	}, nil
 }
 
 func (s *BasicService) log() *zap.Logger {

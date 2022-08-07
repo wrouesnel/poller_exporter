@@ -1,5 +1,7 @@
-tls_cacerts:
-  - system
+host_defaults:
+  service_defaults:
+    tls_cacerts:
+      - system
 
 hosts:
   - hostname: host-with-custom

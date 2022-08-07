@@ -49,6 +49,14 @@ Each host by default is also ICMP ping checked, but this can be disabled in
 cases where ICMP connectivity is not available or `poller_exporter` is running
 without permissions to send ICMP.
 
+## Service Config
+
+> Important: when configuring services, the `name` parameter is vital. Services
+> are uniquely identified to Prometheus by hostname, name, protocol and port.
+> If you register multiple services with the same name, then their metrics
+> will collide. This is detected by the exporter automatically but does lead to
+> weird looking errors.
+
 ### Basic Check
 
 Basic checks simply check for open ports, and optionally validates TLS 
@@ -77,6 +85,9 @@ solely used for the `Host:` header and query path.
 
 The HTTP check can be configured to parse a range of `success_status` codes
 which can be specified as a string-like `200-299,301,401`.
+
+**Important** Metrics for HTTP responses come with some caveats. They are accurate
+and specific only if "no_redirects" is used
 
 ## Configuration Advice
 

@@ -2,8 +2,11 @@ package config
 
 import (
 	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"regexp"
@@ -11,20 +14,34 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/samber/lo"
+
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+)
+
+const (
+	TLSCertificatePoolMaxNonFileEntryReturn int = 50
+)
+
+var (
+	ErrInvalidInputType = errors.New("invalid input type for decoder")
 )
 
 // HTTPStatusRange is a range of HTTP status codes which can be specifid in YAML using human-friendly ranging notation.
 type HTTPStatusRange map[int]bool
 
+// FromString initializes a new HTTPStatusRange from the given string specifier
+//nolint:cyclop
 func (hsr *HTTPStatusRange) FromString(ranges string) error {
+	const HTTPStatusRangeBase int = 10
+	const HTTPStatusRangeBitSize int = 32
 	*hsr = make(HTTPStatusRange)
 	var statusCodes []int
 	fields := strings.Fields(ranges)
 
 	for _, v := range fields {
-		code, err := strconv.ParseInt(v, 10, 32)
+		code, err := strconv.ParseInt(v, HTTPStatusRangeBase, HTTPStatusRangeBitSize)
 		if err == nil {
 			statusCodes = append(statusCodes, int(code))
 			continue
@@ -35,12 +52,12 @@ func (hsr *HTTPStatusRange) FromString(ranges string) error {
 		}
 		// Is a range.
 		statusRange := strings.Split(v, "-")
-		startCode, err := strconv.ParseInt(statusRange[0], 10, 32)
+		startCode, err := strconv.ParseInt(statusRange[0], HTTPStatusRangeBase, HTTPStatusRangeBitSize)
 		if err != nil {
 			return errors.Wrapf(err, "HTTPStatusRange.FromString failed: startCode: %s", v)
 		}
 
-		endCode, err := strconv.ParseInt(statusRange[1], 10, 32)
+		endCode, err := strconv.ParseInt(statusRange[1], HTTPStatusRangeBase, HTTPStatusRangeBitSize)
 		if err != nil {
 			return errors.Wrapf(err, "HTTPStatusRange.FromString failed: endCode: %s", v)
 		}
@@ -63,18 +80,13 @@ func (hsr *HTTPStatusRange) FromString(ranges string) error {
 	return nil
 }
 
-//nolint:gomnd,cyclop
-func (hsr *HTTPStatusRange) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var ranges string
-	if err := unmarshal(&ranges); err != nil {
-		return err
-	}
-
-	return hsr.FromString(ranges)
+// UnmarshalText implements the encoding.TextUnmarshaler.
+func (hsr *HTTPStatusRange) UnmarshalText(text []byte) error {
+	return hsr.FromString(string(text))
 }
 
-// MarshalYAML implements the yaml.Marshaler interface.
-func (hsr HTTPStatusRange) MarshalYAML() (interface{}, error) {
+// MarshalText implements the encoding.TextMarshaler.
+func (hsr HTTPStatusRange) MarshalText() ([]byte, error) {
 	statusCodes := make([]int, 0, len(hsr))
 	var output []string
 	for k := range hsr {
@@ -109,104 +121,75 @@ func (hsr HTTPStatusRange) MarshalYAML() (interface{}, error) {
 		}
 	}
 
-	return strings.Join(output, " "), nil
+	return []byte(strings.Join(output, " ")), nil
 }
 
-// An HTTP speaking service. Does not yet support being a proxy.
-// If TLSEnable is not set but you request HTTPS, it'll fail.
-type HTTPServiceConfig struct {
-	ChallengeResponseConfig `yaml:",inline,omitempty"`
-	Verb                    string          `yaml:"verb,omitempty"`           // HTTP verb to use
-	URL                     URL             `yaml:"url,omitempty"`            // HTTP request URL to send
-	SuccessStatuses         HTTPStatusRange `yaml:"success_status,omitempty"` // List of status codes indicating success
-	BasicAuth               bool            `yaml:"auth,omitempty"`           // Use HTTP basic auth
-	Username                string          `yaml:"username,omitempty"`       // Username for HTTP basic auth
-	Password                string          `yaml:"password,omitempty"`       // Password for HTTP basic auth
+// HTTPVerb wraps string to ensure that verbs are uppercase. It doesn't check if they're
+// valid to allow people to do stupid things with them if they want.
+type HTTPVerb string
+
+func (d HTTPVerb) String() string {
+	return string(d)
 }
 
-func (hsc *HTTPServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*hsc = DefaultHTTPServiceConfig
+// MarshalText implements the encoding.TextMarshaler interface.
+func (d *HTTPVerb) MarshalText() ([]byte, error) {
+	return []byte(*d), nil
+}
 
-	type plain HTTPServiceConfig
-
-	if err := unmarshal((*plain)(hsc)); err != nil {
-		return err
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+func (d *HTTPVerb) UnmarshalText(text []byte) error {
+	*d = HTTPVerb(strings.ToUpper(string(text)))
+	switch *d {
+	case http.MethodGet,
+		http.MethodHead,
+		http.MethodPost,
+		http.MethodPut,
+		http.MethodPatch,
+		http.MethodDelete,
+		http.MethodConnect,
+		http.MethodOptions,
+		http.MethodTrace:
+		return nil
+	default:
+		return errors.Wrapf(ErrInvalidInputType, "HTTPVerb.UnmarshalText: invalid HTTP verb")
 	}
-
-	return nil
 }
 
-// Bytes implements a custom []byte slice so we can unmarshal one from an escaped string.
+// Bytes implements a custom []byte slice implemented TextMarshaller so base64
+// binary content can be passed n.
 type Bytes []byte
 
-// UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (b *Bytes) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	if err := unmarshal(&s); err != nil {
-		return err
-	}
-
-	*b = Bytes(s)
-	return nil
+// MarshalText implements the encoding.TextMarshaler interface.
+func (d *Bytes) MarshalText() ([]byte, error) {
+	return []byte(base64.StdEncoding.EncodeToString(*d)), nil
 }
 
-// MarshalYAML implements the yaml.Marshaler interface.
-func (b *Bytes) MarshalYAML() (interface{}, error) {
-	if len(*b) != 0 {
-		return string(*b), nil
-	}
-	return nil, nil //nolint:nilnil
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+func (d *Bytes) UnmarshalText(text []byte) error {
+	decoded, err := base64.StdEncoding.DecodeString(string(text))
+	*d = decoded
+	return errors.Wrapf(err, "Bytes.UnmarshalText: base64 decoding failed")
 }
 
 // Regexp encapsulates a regexp.Regexp and makes it YAML marshallable.
 type Regexp struct {
-	regexp.Regexp
-	original string
+	*regexp.Regexp
 }
 
-// NewRegexp creates a new anchored Regexp and returns an error if the
-// passed-in regular expression does not compile.
-func NewRegexp(s string) (*Regexp, error) {
-	regex, err := regexp.Compile(s)
-	if err != nil {
-		return nil, errors.Wrap(err, "NewRegexp failed")
-	}
-	return &Regexp{
-		Regexp:   *regex,
-		original: s,
-	}, nil
+// MarshalText implements the encoding.TextMarshaler interface.
+func (r *Regexp) MarshalText() ([]byte, error) {
+	return []byte(r.Regexp.String()), nil
 }
 
-// MustNewRegexp works like NewRegexp, but panics if the regular expression does not compile.
-func MustNewRegexp(s string) *Regexp {
-	re, err := NewRegexp(s)
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+func (r *Regexp) UnmarshalText(text []byte) error {
+	var err error
+	r.Regexp, err = regexp.Compile(string(text))
 	if err != nil {
-		panic(err)
+		return errors.Wrapf(err, "UnmarshalText failed: %v", string(text))
 	}
-	return re
-}
-
-// UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (re *Regexp) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	if err := unmarshal(&s); err != nil {
-		return err
-	}
-	r, err := NewRegexp(s)
-	if err != nil {
-		return err
-	}
-	*re = *r
 	return nil
-}
-
-// MarshalYAML implements the yaml.Marshaler interface.
-//nolint:nilnil
-func (re *Regexp) MarshalYAML() (interface{}, error) {
-	if re != nil {
-		return re.original, nil
-	}
-	return nil, nil
 }
 
 // URL is a custom URL type that allows validation at configuration load time.
@@ -214,29 +197,29 @@ type URL struct {
 	*url.URL
 }
 
-// UnmarshalYAML implements the yaml.Unmarshaler interface for URLs.
-func (u *URL) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	if err := unmarshal(&s); err != nil {
-		return err
-	}
+func NewURL(url string) (URL, error) {
+	u := URL{nil}
+	err := u.UnmarshalText([]byte(url))
+	return u, err
+}
 
-	urlp, err := url.Parse(s)
+// UnmarshalYAML implements the yaml.Unmarshaler interface for URLs.
+func (u *URL) UnmarshalText(text []byte) error {
+	urlp, err := url.Parse(string(text))
 
 	if err != nil {
-		return errors.Wrap(err, "URL UnmarshalYAML failed")
+		return errors.Wrap(err, "URL.UnmarshalText failed")
 	}
 	u.URL = urlp
 	return nil
 }
 
 // MarshalYAML implements the yaml.Marshaler interface for URLs.
-//nolint:nilnil
-func (u URL) MarshalYAML() (interface{}, error) {
+func (u *URL) MarshalText() ([]byte, error) {
 	if u.URL != nil {
-		return u.String(), nil
+		return []byte(u.String()), nil
 	}
-	return nil, nil
+	return []byte(""), nil
 }
 
 // TLSCertificatePool is our custom type for decoding a certificate pool out of
@@ -246,16 +229,45 @@ type TLSCertificatePool struct {
 	original []string
 }
 
-// UnmarshalYAML implements the yaml.Unmarshaler interface for tls_cacerts.
-func (t *TLSCertificatePool) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s []string
-	if err := unmarshal(&s); err != nil {
-		return err
+// MapStructureDecode implements the yaml.Unmarshaler interface for tls_cacerts.
+func (t *TLSCertificatePool) MapStructureDecode(input interface{}) error {
+	// Get the slice
+	interfaceSlice, ok := input.([]interface{})
+	if !ok {
+		return errors.Wrapf(ErrInvalidInputType, "expected []string got %T", input)
 	}
+
+	// Get the strings
+	strErrors := lo.Map(interfaceSlice, func(t interface{}, i int) lo.Tuple2[string, bool] {
+		strValue, ok := t.(string)
+		return lo.T2(strValue, ok)
+	})
+
+	// Extract errors
+	err := lo.Reduce[lo.Tuple2[string, bool], error](strErrors, func(r error, t lo.Tuple2[string, bool], _ int) error {
+		// Return the first error we got if its there
+		if r != nil {
+			return r
+		}
+		_, ok := lo.Unpack2(t)
+		if !ok {
+			return errors.Wrapf(ErrInvalidInputType, "invalid input type in certificate list")
+		}
+		return nil
+	}, nil)
+	if err != nil {
+		return errors.Wrapf(err, "TLSCertificatePool.MapStructureDecode")
+	}
+
+	// Flatten the valid list out to []string
+	caCertSpecEntries := lo.Map(strErrors, func(t lo.Tuple2[string, bool], _ int) string {
+		value, _ := lo.Unpack2(t)
+		return value
+	})
 
 	// Prescan to check for system cert package request
 	t.CertPool = nil
-	for _, entry := range s {
+	for _, entry := range caCertSpecEntries {
 		if entry == TLSCACertsSystem {
 			rootCAs, err := x509.SystemCertPool()
 			if err != nil {
@@ -271,7 +283,8 @@ func (t *TLSCertificatePool) UnmarshalYAML(unmarshal func(interface{}) error) er
 		t.CertPool = x509.NewCertPool()
 	}
 
-	for idx, entry := range s {
+	//nolint:nestif
+	for idx, entry := range caCertSpecEntries {
 		var pem []byte
 		itemSample := ""
 		if entry == TLSCACertsSystem {
@@ -286,24 +299,67 @@ func (t *TLSCertificatePool) UnmarshalYAML(unmarshal func(interface{}) error) er
 			itemSample = entry
 		} else {
 			pem = []byte(entry)
-			if len(entry) < 50 {
+			if len(entry) < TLSCertificatePoolMaxNonFileEntryReturn {
 				itemSample = entry
 			} else {
-				itemSample = entry[:50]
+				itemSample = entry[:TLSCertificatePoolMaxNonFileEntryReturn]
 			}
-
 		}
 		if ok := t.CertPool.AppendCertsFromPEM(pem); !ok {
-			return errors.Wrapf(ErrInvalidPEMFile, "failed at item %v: %s", idx, itemSample)
+			return errors.Wrapf(ErrInvalidPEMFile, "failed at item %v: %v", idx, itemSample)
 		}
 	}
 
-	t.original = s
+	t.original = caCertSpecEntries
 
 	return nil
 }
 
-// MarshalYAML implements the yaml.Marshaler interface for tls_cacerts.
-func (t *TLSCertificatePool) MarshalYAML() (interface{}, error) {
-	return t.original, nil
+// IPNetwork is the config wrapper type for an IP Network.
+type IPNetwork struct {
+	net.IPNet
+}
+
+func (ipn *IPNetwork) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+
+	_, ipnet, err := net.ParseCIDR(s)
+	if err != nil {
+		return errors.Wrapf(err, "IPNetwork.UnmarshalYAML failed: %s", s)
+	}
+
+	ipn.IPNet = *ipnet
+	return nil
+}
+
+func (ipn IPNetwork) MarshalYAML() (interface{}, error) {
+	return ipn.String(), nil
+}
+
+// ProxyURL is a custom type to validate roxy specifications.
+type ProxyURL string
+
+// UnmarshalText implements encoding.UnmarshalText.
+func (p *ProxyURL) UnmarshalText(text []byte) error {
+	s := string(text)
+	_, err := url.Parse(s)
+	if err != nil {
+		*p = ProxyURL(s)
+		return nil
+	}
+	switch s {
+	case ProxyDirect, ProxyEnvironment:
+		*p = ProxyURL(s)
+		return nil
+	default:
+		return err
+	}
+}
+
+// UnmarshalText MarshalText encoding.UnmarshalText.
+func (p *ProxyURL) MarshalText() ([]byte, error) {
+	return []byte(*p), nil
 }

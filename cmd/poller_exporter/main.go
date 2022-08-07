@@ -5,18 +5,26 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"html/template"
 	"io/fs"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"syscall"
+	"time"
 
-	"github.com/wrouesnel/poller_exporter/pkg/errutils"
+	"github.com/samber/lo"
+	"github.com/wrouesnel/multihttp"
 
+	"github.com/wrouesnel/poller_exporter/assets"
 	"github.com/wrouesnel/poller_exporter/pkg/config"
+	"github.com/wrouesnel/poller_exporter/pkg/middleware/auth"
+	"github.com/wrouesnel/poller_exporter/pkg/pollers"
 
 	"github.com/alecthomas/kong"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -26,15 +34,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"time"
-
-	"github.com/goji/httpauth"
-	"github.com/wrouesnel/poller_exporter/assets"
-	"github.com/wrouesnel/poller_exporter/pkg/pollers"
 	"go.uber.org/zap"
 )
 
-var version = "0.0.0"
+var Version = "0.0.0"
 
 //nolint:gochecknoglobals
 var CLI struct {
@@ -42,19 +45,19 @@ var CLI struct {
 	LogLevel  string           `help:"Logging Level" enum:"debug,info,warning,error" default:"info"`
 	LogFormat string           `help:"Logging format" enum:"console,json" default:"console"`
 
-	Web struct {
-		TelemetryPath     string        `help:"Path under which to expose metrics" default:"/metrics"`
-		ListenAddress     string        `help:"Address on which to expose metrics and web interface" default:":9115"`
-		ReadHeaderTimeout time.Duration `help:"Timeout for header read to the server" default:"1s"`
-	} `embed:"" prefix:"web."`
+	//Web struct {
+	//	TelemetryPath     string        `help:"Path under which to expose metrics" default:"/metrics"`
+	//	ListenAddress     string        `help:"Address on which to expose metrics and web interface" default:":9115"`
+	//	ReadHeaderTimeout time.Duration `help:"Timeout for header read to the server" default:"1s"`
+	//} `embed:"" prefix:"web."`
+	Config string `help:"File to load poller config from" default:"poller_exporter.yml"`
 
-	Collector struct {
-		Config string `help:"File to load poller config from" default:"poller_exporter.yml"`
-		Icmp   struct {
-			Disable bool `help:"Ignore ICMP pings checks of host status (useful if not running as root/CAP_SYS_ADMIN)"`
-		} `embed:"" prefix:"icmp"`
-		MaxConnections int `help:"Maximum number of hosts to poll simultaneously (-1 for no limit)" default:"50"`
-	} `embed:"" prefix:"collector."`
+	//Collector struct {
+	//	Icmp   struct {
+	//		Disable bool `help:"Ignore ICMP pings checks of host status (useful if not running as root/CAP_SYS_ADMIN)"`
+	//	} `embed:"" prefix:"icmp"`
+	//	MaxConnections int `help:"Maximum number of hosts to poll simultaneously (-1 for no limit)" default:"50"`
+	//} `embed:"" prefix:"collector."`
 }
 
 // MustCompile compiles the templates out of embed.FS.
@@ -73,7 +76,7 @@ func MustCompile(filename string) *template.Template {
 //nolint:funlen,cyclop
 func main() {
 	vars := kong.Vars{}
-	vars["version"] = version
+	vars["version"] = Version
 	kongParser, err := kong.New(&CLI, vars)
 	if err != nil {
 		panic(err)
@@ -96,6 +99,9 @@ func main() {
 		panic(err)
 	}
 
+	// Replace the global logger to enable logging
+	zap.ReplaceGlobals(log)
+
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	ctx, cancelFn := context.WithCancel(context.Background())
@@ -105,13 +111,23 @@ func main() {
 		cancelFn()
 	}()
 
-	appLog := log.With(zap.String("config_file", CLI.Collector.Config))
+	appLog := log.With(zap.String("config_file", CLI.Config))
 
 	appLog.Debug("Initialize random number generator (used to randomize check frequency)")
 	rand.Seed(time.Now().Unix())
 
 	log.Info("Parsing configuration")
-	cfg, err := config.LoadFromFile(CLI.Collector.Config)
+	configBytes, err := ioutil.ReadFile(CLI.Config)
+	if err != nil {
+		log.Fatal("Error loading config", zap.Error(err))
+	}
+
+	cfg, err := config.Load(configBytes)
+	if err != nil {
+		log.Fatal("Error loading config", zap.Error(err))
+	}
+
+	sanitizedCfg, err := config.LoadAndSanitizeConfig(configBytes)
 	if err != nil {
 		log.Fatal("Error loading config", zap.Error(err))
 	}
@@ -121,7 +137,7 @@ func main() {
 
 	appLog.Debug("Setup web UI")
 	router := httprouter.New()
-	router.Handler("GET", CLI.Web.TelemetryPath,
+	router.Handler("GET", cfg.Web.TelemetryPath,
 		promhttp.HandlerFor(
 			prometheus.DefaultGatherer,
 			promhttp.HandlerOpts{
@@ -130,17 +146,33 @@ func main() {
 			},
 		)) // Prometheus
 	// Static asset handling
+	router.Handler("GET", "/static/*filepath",
+		http.FileServer(
+			http.FS(lo.Must(fs.Sub(assets.Assets, "web")))))
 
-	router.Handler("GET", "/static/*filepath", http.FileServer(http.FS(errutils.Must[fs.FS](fs.Sub(assets.Assets, "web")))))
+	router.GET("/buildinfo", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		info, ok := debug.ReadBuildInfo()
+		if !ok {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
+		buildInfoJson, err := json.Marshal(info)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(buildInfoJson)
+	})
 
 	monitoredHosts := make([]*pollers.Host, 0, len(cfg.Hosts))
 	router.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		data := struct {
-			Cfg   *config.Config
-			Hosts *[]*pollers.Host
+			Version       string
+			DisplayConfig string
+			Hosts         *[]*pollers.Host
 		}{
-			Cfg:   cfg,
-			Hosts: &monitoredHosts,
+			Version:       Version,
+			DisplayConfig: sanitizedCfg,
+			Hosts:         &monitoredHosts,
 		}
 		err := tmpl.Execute(w, &data)
 		if err != nil {
@@ -158,9 +190,6 @@ func main() {
 	for _, hostCfg := range cfg.Hosts {
 		hostLog := log.With(zap.String("hostname", hostCfg.Hostname))
 		hostLog.Debug("Setting up poller for hostname")
-		if CLI.Collector.Icmp.Disable {
-			hostCfg.PingDisable = true
-		}
 		if _, ok := seenHosts[hostCfg.Hostname]; ok {
 			hostLog.Warn("Discarding repeat configuration of same hostname")
 			continue
@@ -175,7 +204,7 @@ func main() {
 
 	// This is the dispatcher. It is responsible for invoking the doPoll method
 	// of hosts.
-	connectionLimiter := pollers.NewLimiter(CLI.Collector.MaxConnections)
+	connectionLimiter := pollers.NewLimiter(cfg.Collector.MaxConnections)
 	hostQueue := make(chan *pollers.Host)
 
 	appLog.Info("Starting host dispatcher")
@@ -193,35 +222,40 @@ func main() {
 		}
 	}()
 
-	var handler http.Handler
-	// If basic auth is requested, enable it for the interface.
-	if cfg.BasicAuthUsername != "" && cfg.BasicAuthPassword != "" {
-		appLog.Info("Enabling basic auth")
-		basicauth := httpauth.SimpleBasicAuth(cfg.BasicAuthUsername,
-			cfg.BasicAuthPassword)
-		handler = basicauth(router)
-	} else {
-		handler = router
+	handler, err := auth.SetupAuthHandler(cfg.Web.Auth, router)
+	if err != nil {
+		appLog.Error("Failed while setting up authenticator handler", zap.Error(err))
 	}
 
-	srv := &http.Server{Addr: CLI.Web.ListenAddress, Handler: handler, ReadHeaderTimeout: CLI.Web.ReadHeaderTimeout}
 	webCtx, webCancel := context.WithCancel(ctx)
 
-	go func() {
-		// If TLS certificates are specified, use TLS
-		if cfg.TLSCertificatePath != "" && cfg.TLSKeyPath != "" {
-			appLog.Info("Listening on (TLS-enabled) interface", zap.String("listen_address", CLI.Web.ListenAddress))
-			err = srv.ListenAndServeTLS(cfg.TLSCertificatePath, cfg.TLSKeyPath)
-		} else {
-			appLog.Info("Listening on unsecured interface", zap.String("listen_address", CLI.Web.ListenAddress))
-			err = srv.ListenAndServe()
-		}
-		if err != nil {
-			appLog.Error("Exiting with error from HTTP server")
-		}
+	listeners, errCh, listenerErr := multihttp.Listen(lo.Map(cfg.Web.Listen, func(t config.URL, _ int) string {
+		return t.String()
+	}), handler)
+	if listenerErr != nil {
+		appLog.Error("Error setting up listeners", zap.Error(listenerErr))
 		webCancel()
+	}
+
+	// Log errors from the listener
+	go func() {
+		listenerErrInfo := <-errCh
+		// On the first error, cancel the webCtx to shutdown
+		webCancel()
+		for {
+			appLog.Error("Error from listener",
+				zap.Error(listenerErrInfo.Error),
+				zap.String("listener_addr", listenerErrInfo.Listener.Addr().String()))
+			// Keep receiving the rest of the errors so we can log them
+			listenerErrInfo = <-errCh
+		}
 	}()
 	<-webCtx.Done()
+	for _, listener := range listeners {
+		if err := listener.Close(); err != nil {
+			appLog.Warn("Error closing listener during shutdown", zap.Error(err))
+		}
+	}
 
-	appLog.Info("Exiting normally")
+	appLog.Info("Exiting")
 }

@@ -3,7 +3,6 @@ package pollers
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"net"
 
 	"go.uber.org/zap"
 
@@ -21,7 +20,7 @@ type TLSService struct {
 
 	tlsRootCAs *x509.CertPool // Certificate pool to validate the service with
 
-	Poller
+	BasePoller
 }
 
 func (s *TLSService) Describe(ch chan<- *prometheus.Desc) {
@@ -32,7 +31,7 @@ func (s *TLSService) Describe(ch chan<- *prometheus.Desc) {
 	s.CertificateValidCount.Describe(ch)
 
 	// Do basic service collection
-	s.Poller.Describe(ch)
+	s.BasePoller.Describe(ch)
 }
 
 func (s *TLSService) Collect(ch chan<- prometheus.Metric) {
@@ -43,7 +42,7 @@ func (s *TLSService) Collect(ch chan<- prometheus.Metric) {
 	s.CertificateValidCount.Collect(ch)
 
 	// Do basic service collection
-	s.Poller.Collect(ch)
+	s.BasePoller.Collect(ch)
 }
 
 // Poll but for the SSL service.
@@ -57,8 +56,8 @@ func (s *TLSService) Poll() {
 	}
 }
 
-func (s *TLSService) doPoll() net.Conn {
-	conn := s.Poller.doPoll()
+func (s *TLSService) doPoll() *PollConnection {
+	conn := s.BasePoller.doPoll()
 	if conn == nil {
 		return nil
 	}
@@ -69,7 +68,7 @@ func (s *TLSService) doPoll() net.Conn {
 }
 
 // Scrape TLS data from a dialed connection.
-func (s *TLSService) scrapeTLS(conn net.Conn) net.Conn {
+func (s *TLSService) scrapeTLS(conn *PollConnection) *PollConnection {
 	tlsConfig := &tls.Config{InsecureSkipVerify: true} //nolint:gosec
 	tlsConn := tls.Client(conn, tlsConfig)
 	if err := tlsConn.Handshake(); err != nil {
@@ -98,5 +97,10 @@ func (s *TLSService) scrapeTLS(conn net.Conn) net.Conn {
 	s.CertificateNotAfter.WithLabelValues(hostcert.Subject.CommonName).Set(float64(hostcert.NotAfter.Unix()))
 	s.CertificateNotBefore.WithLabelValues(hostcert.Subject.CommonName).Set(float64(hostcert.NotBefore.Unix()))
 
-	return tlsConn
+	return &PollConnection{
+		Conn:     tlsConn,
+		dialer:   conn.dialer,
+		deadline: conn.deadline,
+		ctx:      conn.ctx,
+	}
 }

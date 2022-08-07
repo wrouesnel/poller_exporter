@@ -39,11 +39,16 @@ type Host struct {
 	pingStatus  Status        // Last known ping result
 	pingLatency time.Duration // Last known ping time
 
-	config.HostConfig
+	*config.HostConfig
 }
 
 //nolint:funlen
-func NewHost(opts config.HostConfig) *Host {
+func NewHost(opts *config.HostConfig) *Host {
+	// Sanity check
+	if opts == nil {
+		zap.L().Error("Received nil hostConfig specification")
+		return nil
+	}
 	// Setup the host
 	newHost := Host{
 		IP: "", // Initially unresolved
@@ -257,6 +262,8 @@ func (s *Host) Poll(limiter *Limiter, hostQueue chan<- *Host) {
 		// Can the host be reached by ICMP?
 		if !s.PingDisable {
 			s.doPing()
+		} else {
+			s.pingStatus = PollStatusUnknown
 		}
 
 		// Call poller methods

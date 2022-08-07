@@ -455,23 +455,6 @@ func Lint() error {
 	args := []string{"-j", fmt.Sprintf("%v", concurrency), fmt.Sprintf(
 		"--deadline=%s", linterDeadline.String()),
 		"run",
-		"--enable-all",
-		// Deprecated linters
-		"--disable=golint",
-		"--disable=ireturn",
-		"--disable=interfacer",
-		"--disable=exhaustivestruct",
-		"--disable=maligned",
-		"--disable=scopelint",
-		// Doesn't work
-		"--disable=promlinter",
-		// Not used
-		"--disable=paralleltest",
-		"--disable=nlreturn",
-		"--disable=wsl",
-		"--disable=lll",
-		"--disable=gofumpt",
-		"--disable=gci",
 	}
 	return sh.RunV("golangci-lint", append(args, goDirs...)...)
 }
@@ -479,7 +462,7 @@ func Lint() error {
 // fmt runs golangci-lint with the formatter options.
 func formattingLinter(doFixes bool) error {
 	mg.Deps(Tools)
-	args := []string{"run", "--disable-all", "--enable=gofmt", "--enable=goimports", "--enable=godot"}
+	args := []string{"run", "--no-config", "--disable-all", "--enable=gofmt", "--enable=goimports", "--enable=godot"}
 	if doFixes {
 		args = append(args, "--fix")
 	}

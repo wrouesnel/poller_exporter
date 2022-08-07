@@ -1,0 +1,38 @@
+# This is a simple poller_exporter config file which shows off a basic configuration
+# you can run on any internet connected PC. It is best used in docker so the
+# exporter can run as root. Alternatively set your exporter binary with Linux
+# capabilities: sudo setcap cap_net_raw+p poller_exporter
+
+host_defaults:
+  disable_ping: true
+
+hosts:
+  - hostname: dns.google
+    basic_checks:
+      - name: DNS
+        proto: tcp
+        port: 53
+  - hostname: smtp.gmail.com
+    challenge_response_checks:
+      - name: SMTPS
+        proto: tcp
+        port: 465
+        tls_enable: true
+        response: 220 smtp.gmail.com
+        max_bytes: 128
+  - hostname: google.com
+    http_checks:
+    - name: HTTP
+      proto: tcp
+      port: 80
+      http_success_status: "301"
+      url: http://google.com/
+      http_enable_redirects: false
+    - name: HTTPS
+      proto: tcp
+      port: 443
+      tls_enable: true
+      url: https://google.com/
+      http_success_status: "200"
+      http_enable_redirects: true
+      response: "<!doctype html><html"
