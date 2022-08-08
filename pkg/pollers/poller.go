@@ -24,7 +24,7 @@ const PollStatusFailed = Status(float64(0))
 const MetricLabelSuccess = "successful"
 const MetricLabelFailed = "failed"
 
-// nolint:gochecknoinits
+//nolint:gochecknoinits
 func init() {
 	// Register additional proxy schemes
 	proxy.RegisterDialerType("http", connectproxy.New)
