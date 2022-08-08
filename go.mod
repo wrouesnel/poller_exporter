@@ -13,10 +13,9 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.2
-	github.com/prometheus/common v0.32.1
+	github.com/prometheus/common v0.37.0
 	github.com/samber/lo v1.27.0
 	github.com/shaj13/go-guardian/v2 v2.11.5
-	github.com/shaj13/libcache v1.0.5
 	github.com/wrouesnel/multihttp v1.0.0
 	go.uber.org/atomic v1.7.0
 	go.uber.org/zap v1.21.0
@@ -42,6 +41,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/rogpeppe/go-internal v1.6.1 // indirect
+	github.com/shaj13/libcache v1.0.5 // indirect
 	github.com/stretchr/testify v1.8.0 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
