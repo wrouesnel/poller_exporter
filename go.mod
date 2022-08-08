@@ -17,7 +17,7 @@ require (
 	github.com/samber/lo v1.27.0
 	github.com/shaj13/go-guardian/v2 v2.11.5
 	github.com/wrouesnel/multihttp v1.0.0
-	go.uber.org/atomic v1.7.0
+	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/net v0.0.0-20220805013720-a33c5aa5df48
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
