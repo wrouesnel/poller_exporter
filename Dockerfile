@@ -8,10 +8,7 @@ EXPOSE 9115
 COPY ./ /workdir/
 WORKDIR /workdir
 
-RUN CGO_ENABLED=0 \
-    go build -a -o poller_exporter \
-    -trimpath -ldflags '-buildid= -extldflags "-static"' \
-    ./cmd/poller_exporter
+RUN go run mage.go binary
 
 FROM scratch
 
