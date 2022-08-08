@@ -56,7 +56,7 @@ type HTTPService struct {
 	Poller                // but it is a Poller
 }
 
-// nolint:funlen
+//nolint:funlen
 func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 	if opts.Verb == "" {
 		opts.Verb = "GET"
@@ -215,7 +215,7 @@ func (hs *HTTPService) isWriter() bool {
 	return (hs.config.ChallengeString != nil || hs.config.ChallengeBinary != nil)
 }
 
-// nolint:funlen,cyclop
+//nolint:funlen,cyclop
 func (hs *HTTPService) Poll() {
 	l := hs.log().With(zap.String("verb", hs.config.Verb.String()),
 		zap.String("hostname", hs.Host().Hostname),

@@ -62,7 +62,7 @@ func (crms *ChallengeResponseMetricSet) Collect(ch chan<- prometheus.Metric) {
 }
 
 // NewChallengeResponseMetricSet initializes a new set of metrics with the given constant labels.
-// nolint:funlen
+//nolint:funlen
 func NewChallengeResponseMetricSet(constantLabels prometheus.Labels) ChallengeResponseMetricSet {
 	metricSet := ChallengeResponseMetricSet{
 		ServiceRequestSuccessful: prometheus.NewGauge(
@@ -288,7 +288,7 @@ func (crs *ChallengeResponseService) Collect(ch chan<- prometheus.Metric) {
 	crs.BasePoller.Collect(ch)
 }
 
-// nolint: funlen
+//nolint:funlen
 func (crs *ChallengeResponseService) doPoll() net.Conn {
 	// Call the parent poller (TLS or basic service)
 	conn := crs.BasePoller.doPoll()
@@ -432,7 +432,7 @@ func TryReadMatch(conn io.Reader, config *config.ChallengeResponseConfig) (Statu
 		allBytes = append(allBytes, currentBytes...)
 
 		// Try and match.
-		// nolint: nestif
+		//nolint:nestif
 		if config.ResponseRegex != nil {
 			if config.ResponseRegex.Match(allBytes) {
 				serviceResponded = PollStatusSuccess

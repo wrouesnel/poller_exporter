@@ -2,7 +2,7 @@
 
 // Self-contained go-project magefile.
 
-// nolint: deadcode,gochecknoglobals,gochecknoinits,wrapcheck,varnamelen,gomnd,forcetypeassert,forbidigo,funlen,gocognit,cyclop,nolintlint
+//nolint:deadcode,gochecknoglobals,gochecknoinits,wrapcheck,varnamelen,gomnd,forcetypeassert,forbidigo,funlen,gocognit,cyclop,nolintlint
 package main
 
 import (
@@ -449,7 +449,10 @@ func Tools() (err error) {
 		return nil
 	}
 
-	if berr := toolBuild("static", "github.com/golangci/golangci-lint/cmd/golangci-lint@v1.47.2", "github.com/wadey/gocovmerge@latest"); berr != nil {
+	// golangci-lint don't want to support if it's not a binary release, so
+	// don't go-install.
+
+	if berr := toolBuild("static", "github.com/golangci/golangci-lint/cmd/golangci-lint@v1.48.0", "github.com/wadey/gocovmerge@latest"); berr != nil {
 		return berr
 	}
 
@@ -654,7 +657,7 @@ func All() error {
 }
 
 // GithubReleaseMatrix emits a line to setup build matrix jobs for release builds.
-// nolint:unparam
+//nolint:unparam
 func GithubReleaseMatrix() error {
 	output := make([]string, 0, len(platforms))
 	for _, platform := range platforms {
@@ -734,7 +737,7 @@ func Binary() error {
 }
 
 // doReleaseBin handles the deferred building of an actual release binary.
-// nolint:gocritic
+//nolint:gocritic
 func doReleaseBin(OSArch string) func() error {
 	platform, ok := platformsLookup[OSArch]
 	if !ok {
@@ -822,7 +825,7 @@ func PlatformTargets() error {
 }
 
 // Release a binary archive for a specific platform
-// nolint:gocritic
+//nolint:gocritic
 func Release(OSArch string) error {
 	return doRelease(OSArch)()
 }

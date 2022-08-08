@@ -179,7 +179,7 @@ func (s *BasicService) dialAndScrape() (*PollConnection, error) {
 	// Set absolute deadline
 	deadline := time.Now().Add(time.Duration(s.config.Timeout))
 	// Build context for deadline
-	// nolint:govet
+	//nolint:govet
 	ctx, ctxCancel := context.WithDeadline(context.Background(), deadline)
 
 	var err error
@@ -220,7 +220,7 @@ func (s *BasicService) dialAndScrape() (*PollConnection, error) {
 	}
 
 	// govet will flag this as a lost context, but this is just how poller_exporter works.
-	// nolint:govet,containedctx,nolintlint
+	//nolint:govet,containedctx,nolintlint
 	return &PollConnection{
 		Conn:     conn,
 		dialer:   dialer,

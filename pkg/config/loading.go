@@ -100,7 +100,7 @@ func LoadAndSanitizeConfig(configData []byte) (string, error) {
 }
 
 // Load loads a configuration file from the supplied bytes.
-// nolint: forcetypeassert,funlen,cyclop
+//nolint:forcetypeassert,funlen,cyclop
 func Load(configData []byte) (*Config, error) {
 	defaultMap := loadDefaultConfigMap()
 	configMap, err := loadConfigMap(configData)
