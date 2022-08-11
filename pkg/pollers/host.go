@@ -210,13 +210,13 @@ func (s *Host) Collect(ch chan<- prometheus.Metric) {
 	s.PathReachable.Collect(ch)
 
 	//Latency
-	switch s.pingStatus {
-	case PollStatusUnknown:
-		s.PingLatency.Set(math.NaN())
-	case PollStatusFailed:
+	switch {
+	case s.pingStatus == PollStatusFailed:
 		s.PingLatency.Set(math.Inf(1))
-	case PollStatusSuccess:
+	case s.pingStatus == PollStatusSuccess:
 		s.PingLatency.Set(float64(s.pingLatency / time.Microsecond))
+	case math.IsNaN(float64(s.pingStatus)):
+		s.PingLatency.Set(math.NaN())
 	default:
 		s.log().Warn("Unknown PollStatus value returned")
 		s.PingLatency.Set(float64(s.pingLatency / time.Microsecond))
