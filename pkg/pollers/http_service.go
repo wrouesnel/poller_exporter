@@ -239,7 +239,7 @@ func (hs *HTTPService) Poll() {
 	defer func() {
 		if err := conn.Close(); err != nil {
 			// This happens normally, ignore it.
-			if errors.Is(err, net.ErrClosed) {
+			if !errors.Is(err, net.ErrClosed) {
 				l.Info("Error closing connection", zap.String("error", err.Error()))
 			}
 		}
