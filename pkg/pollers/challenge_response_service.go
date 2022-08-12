@@ -190,18 +190,18 @@ type ChallengeResponseService struct {
 }
 
 func NewChallengeResponseService(host *Host, opts config.ChallengeResponseConfig) *ChallengeResponseService {
-	clabels := prometheus.Labels{
-		"poller_type": "challenge-response",
+	constantLabels := prometheus.Labels{
+		"poller_type": PollerTypeChallengeResponse,
 		"hostname":    host.Hostname,
 		"name":        opts.Name,
 		"protocol":    opts.Protocol,
 		"port":        fmt.Sprintf("%d", opts.Port),
 	}
 
-	basePoller := NewBasicService(host, opts.BasicServiceConfig)
+	basePoller := NewBasicService(host, opts.BasicServiceConfig, constantLabels)
 
 	newService := ChallengeResponseService{
-		ChallengeResponseMetricSet: NewChallengeResponseMetricSet(clabels),
+		ChallengeResponseMetricSet: NewChallengeResponseMetricSet(constantLabels),
 
 		serviceChallengeable: PollStatusUnknown,
 		serviceResponsive:    PollStatusUnknown,
@@ -244,6 +244,10 @@ func (crs *ChallengeResponseService) Status() Status {
 	}
 
 	return crs.BasePoller.Status()
+}
+
+func (crs *ChallengeResponseService) PollerType() string {
+	return PollerTypeChallengeResponse
 }
 
 // Describe returns the Prometheus metrics description.

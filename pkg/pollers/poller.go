@@ -24,6 +24,12 @@ const PollStatusFailed = Status(float64(0))
 const MetricLabelSuccess = "successful"
 const MetricLabelFailed = "failed"
 
+const (
+	PollerTypeBasic             = "basic"
+	PollerTypeChallengeResponse = "challenge-response"
+	PollyerTypeHTTP             = "http"
+)
+
 //nolint:gochecknoinits
 func init() {
 	// Register additional proxy schemes
@@ -74,8 +80,11 @@ type Poller interface {
 	Status() Status // Returns the overall status of the service
 	Host() *Host    // Returns the attached host of the service
 
+	Labels() prometheus.Labels
 	Describe(ch chan<- *prometheus.Desc)
 	Collect(ch chan<- prometheus.Metric)
+
+	LogFields() []zap.Field // Return a description of this poller in zap fields
 
 	log() *zap.Logger // Provide common logging for pollers
 }

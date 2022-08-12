@@ -185,7 +185,8 @@ func main() {
 	// We don't allow duplicate hosts, but also don't want to panic just due
 	// to a typo, so keep track and skip duplicates here.
 	seenHosts := make(map[string]bool)
-
+	statusCollecter := pollers.NewServiceStatusMetrics()
+	prometheus.MustRegister(statusCollecter)
 	realIdx := 0
 	for _, hostCfg := range cfg.Hosts {
 		hostLog := log.With(zap.String("hostname", hostCfg.Hostname))
@@ -195,6 +196,8 @@ func main() {
 			continue
 		}
 		host := pollers.NewHost(hostCfg)
+		// Add pollers to the status collector
+		statusCollecter.AddPoller(host.Pollers...)
 		monitoredHosts = append(monitoredHosts, host)
 		prometheus.MustRegister(host)
 

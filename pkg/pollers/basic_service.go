@@ -19,6 +19,8 @@ import (
 )
 
 type BasicService struct {
+	labels prometheus.Labels
+
 	portOpen Status // Was the port successfully accessed?
 
 	PortOpen      prometheus.Gauge       // Port open metric
@@ -57,19 +59,26 @@ func (s *BasicService) Collect(ch chan<- prometheus.Metric) {
 	s.PortOpen.Collect(ch)
 }
 
+func (s *BasicService) Labels() prometheus.Labels {
+	return s.labels
+}
+
 //nolint:funlen
-func NewBasicService(host *Host, opts config.BasicServiceConfig) BasePoller {
+func NewBasicService(host *Host, opts config.BasicServiceConfig, constantLabels prometheus.Labels) BasePoller {
 	var poller BasePoller
 
-	clabels := prometheus.Labels{
-		"poller_type": "basic",
-		"hostname":    host.Hostname,
-		"name":        opts.Name,
-		"protocol":    opts.Protocol,
-		"port":        fmt.Sprintf("%d", opts.Port),
+	if constantLabels == nil {
+		constantLabels = prometheus.Labels{
+			"poller_type": PollerTypeBasic,
+			"hostname":    host.Hostname,
+			"name":        opts.Name,
+			"protocol":    opts.Protocol,
+			"port":        fmt.Sprintf("%d", opts.Port),
+		}
 	}
 
 	newBasicService := &BasicService{
+		labels:   constantLabels,
 		host:     host,
 		portOpen: PollStatusUnknown,
 		PortOpen: prometheus.NewGauge(
@@ -78,7 +87,7 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) BasePoller {
 				Subsystem:   "service",
 				Name:        "port_open_boolean",
 				Help:        "whether the targeted port by the service is open (i.e. can be connected to)",
-				ConstLabels: clabels,
+				ConstLabels: constantLabels,
 			},
 		),
 		PortOpenCount: prometheus.NewCounterVec(
@@ -87,7 +96,7 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) BasePoller {
 				Subsystem:   "service",
 				Name:        "port_open_count",
 				Help:        "cumulative count of checks for if the port is open",
-				ConstLabels: clabels,
+				ConstLabels: constantLabels,
 			},
 			[]string{"result"},
 		),
@@ -104,21 +113,21 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) BasePoller {
 				Subsystem:   "service",
 				Name:        "tls_certificate_validity_notbefore",
 				Help:        "TLS certificate valid from",
-				ConstLabels: clabels,
+				ConstLabels: constantLabels,
 			}, []string{"commonName"}),
 			CertificateNotAfter: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace:   Namespace,
 				Subsystem:   "service",
 				Name:        "tls_certificate_validity_notafter",
 				Help:        "TLS certificate expiry",
-				ConstLabels: clabels,
+				ConstLabels: constantLabels,
 			}, []string{"commonName"}),
 			CertificateValid: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace:   Namespace,
 				Subsystem:   "service",
 				Name:        "tls_certificate_validity_valid",
 				Help:        "TLS certificate can be validated by the scraper process",
-				ConstLabels: clabels,
+				ConstLabels: constantLabels,
 			}, []string{"commonName"}),
 			CertificateValidCount: prometheus.NewCounterVec(
 				prometheus.CounterOpts{
@@ -126,7 +135,7 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig) BasePoller {
 					Subsystem:   "service",
 					Name:        "tls_certificate_validity_valid_total",
 					Help:        "cumulative count of TLS certificate validations",
-					ConstLabels: clabels,
+					ConstLabels: constantLabels,
 				},
 				[]string{"result"},
 			),
@@ -235,4 +244,14 @@ func (s *BasicService) log() *zap.Logger {
 		return s.host.log()
 	}
 	return l.With(zap.String("logger_note", "no host"))
+}
+
+// LogFields returns a description of this poller as zap logging fields.
+func (s *BasicService) LogFields() []zap.Field {
+	return []zap.Field{
+		zap.String("name", s.Name()),
+		zap.String("proto", s.Proto()),
+		zap.Uint64("port", s.Port()),
+		zap.String("hostname", s.host.Hostname),
+	}
 }

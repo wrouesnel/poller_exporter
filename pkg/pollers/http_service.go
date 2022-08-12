@@ -62,25 +62,25 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 		opts.Verb = "GET"
 	}
 
-	clabels := prometheus.Labels{
-		"poller_type": "http",
+	constantLabels := prometheus.Labels{
+		"poller_type": PollyerTypeHTTP,
 		"hostname":    host.Hostname,
 		"name":        opts.Name,
 		"protocol":    opts.Protocol,
 		"port":        fmt.Sprintf("%d", opts.Port),
 	}
 
-	basePoller := NewBasicService(host, opts.BasicServiceConfig)
+	basePoller := NewBasicService(host, opts.BasicServiceConfig, constantLabels)
 
 	newService := HTTPService{
-		ChallengeResponseMetricSet: NewChallengeResponseMetricSet(clabels),
+		ChallengeResponseMetricSet: NewChallengeResponseMetricSet(constantLabels),
 
 		responseReceived: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
 			Subsystem:   "service",
 			Name:        "http_response_rceived_bool",
 			Help:        "Was an HTTP response received?",
-			ConstLabels: clabels,
+			ConstLabels: constantLabels,
 		}),
 
 		responseSuccess: prometheus.NewGauge(prometheus.GaugeOpts{
@@ -88,7 +88,7 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 			Subsystem:   "service",
 			Name:        "http_response_success_bool",
 			Help:        "Was the HTTP response code successful",
-			ConstLabels: clabels,
+			ConstLabels: constantLabels,
 		}),
 
 		responseCount: prometheus.NewCounterVec(
@@ -97,7 +97,7 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 				Subsystem:   "service",
 				Name:        "http_response_result_total",
 				Help:        "Cumulative count of HTTP response checks",
-				ConstLabels: clabels,
+				ConstLabels: constantLabels,
 			},
 			[]string{"result"},
 		),
@@ -107,7 +107,7 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 			Subsystem:   "service",
 			Name:        "http_redirects_count",
 			Help:        "Number of redirects from the last request",
-			ConstLabels: clabels,
+			ConstLabels: constantLabels,
 		}),
 
 		lastResponseStatus: -1,
