@@ -51,12 +51,12 @@ func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration)
 	} else if isIPv6(ip) {
 		socket, err = icmp.ListenPacket("ip6:ipv6-icmp", "::")
 	} else {
-		log.Error("IP did not match any known types?")
+		log.Warn("IP did not match any known types?")
 		return
 	}
 
 	if err != nil {
-		log.Error("Error listening to socket", zap.Error(err))
+		log.Warn("Error listening to socket", zap.Error(err))
 		return
 	}
 	defer socket.Close()
@@ -94,7 +94,7 @@ func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration)
 
 	icmpMessageBytes, err := icmpMessage.Marshal(nil)
 	if err != nil {
-		log.Error("Error marshalling packet", zap.String("ip_address", ip.String()), zap.Error(err))
+		log.Warn("Error marshalling packet", zap.String("ip_address", ip.String()), zap.Error(err))
 		return
 	}
 
@@ -103,7 +103,7 @@ func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration)
 	dst := &net.IPAddr{IP: ip}
 
 	if _, err := socket.WriteTo(icmpMessageBytes, dst); err != nil {
-		log.Error("Error writing to socket", zap.String("ip_address", ip.String()), zap.Error(err))
+		log.Warn("Error writing to socket", zap.String("ip_address", ip.String()), zap.Error(err))
 		return
 	}
 
@@ -114,19 +114,19 @@ func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration)
 	} else if isIPv6(ip) {
 		icmpMessage.Type = ipv6.ICMPTypeEchoReply
 	} else {
-		log.Error("IP did not match any known types?")
+		log.Warn("IP did not match any known types?")
 		return
 	}
 
 	icmpMessageBytes, err = icmpMessage.Marshal(nil)
 	if err != nil {
-		log.Error("Error marshalling packet", zap.String("ip_address", ip.String()), zap.Error(err))
+		log.Warn("Error marshalling packet", zap.String("ip_address", ip.String()), zap.Error(err))
 		return
 	}
 
 	receiveBuffer := make([]byte, 1500) //nolint:gomnd
 	if err := socket.SetReadDeadline(deadline); err != nil {
-		log.Error("Error setting socket deadline", zap.String("ip_address", ip.String()), zap.Error(err))
+		log.Warn("Error setting socket deadline", zap.String("ip_address", ip.String()), zap.Error(err))
 		return
 	}
 	for {
@@ -140,7 +140,7 @@ func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration)
 					return
 				}
 			}
-			log.Error("Error reading from socket for", zap.String("ip_address", ip.String()), zap.Error(err))
+			log.Warn("Error reading from socket for", zap.String("ip_address", ip.String()), zap.Error(err))
 			continue
 		}
 		if peer.String() != ip.String() {
