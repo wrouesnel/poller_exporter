@@ -335,7 +335,7 @@ func (hs *HTTPService) Poll() {
 	defer resp.Body.Close()
 	l.Debug("HTTP response",
 		zap.String("hostname", hs.Host().Hostname),
-		zap.Uint64("hostname", hs.Port()),
+		zap.Uint64("port", hs.Port()),
 		zap.Int("http_status_code", resp.StatusCode),
 		zap.String("http_status", resp.Status))
 	// Service responded - set status code
