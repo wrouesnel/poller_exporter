@@ -114,6 +114,18 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig, constantLabels 
 
 	// If SSL, then return an SSL service instead
 	if opts.TLSEnable {
+		tlsSniName := ""
+		if opts.TLSServerNameIndication != nil {
+			tlsSniName = *opts.TLSServerNameIndication
+		} else {
+			// Check if the hostname is an IP address
+			if net.ParseIP(host.Hostname) == nil {
+				// This is a hostname and we don't have an explicit SNI set -
+				// use that.
+				tlsSniName = host.Hostname
+			}
+		}
+
 		newSSLservice := TLSService{
 			CertificateNotBefore: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace:   Namespace,
@@ -152,9 +164,11 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig, constantLabels 
 				Name:        "tls_certificate_matches_pin_bool",
 				Help:        "TLS certificate matches one of the specified pinned certificates (1 for true, 0 for false)",
 				ConstLabels: constantLabels}),
-			tlsRootCAs: opts.TLSCACerts.CertPool,
-			tlsPinMap:  opts.TLSCertificatePin,
-			BasePoller: poller,
+			tlsVerifyFailOk: opts.TLSVerifyFailOk,
+			tlsSniName:      tlsSniName,
+			tlsRootCAs:      opts.TLSCACerts.CertPool,
+			tlsPinMap:       opts.TLSCertificatePin,
+			BasePoller:      poller,
 		}
 		poller = BasePoller(&newSSLservice) // Turn the SSL service into a Poller
 	}
