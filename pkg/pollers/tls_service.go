@@ -4,6 +4,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 
+	"github.com/wrouesnel/poller_exporter/pkg/config"
+
 	"go.uber.org/zap"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -18,7 +20,10 @@ type TLSService struct {
 	CertificateValid      *prometheus.GaugeVec   // Whether the certificate validates to this host
 	CertificateValidCount *prometheus.CounterVec // Cumulative count of SSL validations
 
-	tlsRootCAs *x509.CertPool // Certificate pool to validate the service with
+	CertificateMatchesPin prometheus.Gauge // Whether the certificate matches the pinned certificate list
+
+	tlsRootCAs *x509.CertPool            // Certificate pool to validate the service with
+	tlsPinMap  *config.TLSCertificateMap // TLS certificates which are considered pinned
 
 	BasePoller
 }
@@ -27,8 +32,9 @@ func (s *TLSService) Describe(ch chan<- *prometheus.Desc) {
 	s.CertificateNotAfter.Describe(ch)
 	s.CertificateNotBefore.Describe(ch)
 	s.CertificateValid.Describe(ch)
-
 	s.CertificateValidCount.Describe(ch)
+
+	s.CertificateMatchesPin.Describe(ch)
 
 	// Do basic service collection
 	s.BasePoller.Describe(ch)
@@ -38,8 +44,9 @@ func (s *TLSService) Collect(ch chan<- prometheus.Metric) {
 	s.CertificateNotAfter.Collect(ch)
 	s.CertificateNotBefore.Collect(ch)
 	s.CertificateValid.Collect(ch)
-
 	s.CertificateValidCount.Collect(ch)
+
+	s.CertificateMatchesPin.Collect(ch)
 
 	// Do basic service collection
 	s.BasePoller.Collect(ch)
@@ -84,6 +91,14 @@ func (s *TLSService) scrapeTLS(conn *PollConnection) *PollConnection {
 	opts := x509.VerifyOptions{
 		DNSName:       s.Host().Hostname,
 		Intermediates: intermediates,
+	}
+
+	if s.tlsPinMap != nil {
+		if s.tlsPinMap.HasCert(hostcert) {
+			s.CertificateMatchesPin.Set(1)
+		} else {
+			s.CertificateMatchesPin.Set(0)
+		}
 	}
 
 	if _, err := hostcert.Verify(opts); err != nil {

@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"time"
 
+	connect_proxy_scheme "github.com/wrouesnel/go.connect-proxy-scheme"
+
 	"github.com/samber/lo"
 	"golang.org/x/net/proxy"
 
@@ -17,6 +19,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 )
+
+//nolint:gochecknoinits
+func init() {
+	proxy.RegisterDialerType("http", connect_proxy_scheme.ConnectProxy)
+}
 
 type BasicService struct {
 	labels prometheus.Labels
@@ -139,7 +146,14 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig, constantLabels 
 				},
 				[]string{"result"},
 			),
+			CertificateMatchesPin: prometheus.NewGauge(prometheus.GaugeOpts{
+				Namespace:   Namespace,
+				Subsystem:   "service",
+				Name:        "tls_certificate_matches_pin_bool",
+				Help:        "TLS certificate matches one of the specified pinned certificates (1 for true, 0 for false)",
+				ConstLabels: constantLabels}),
 			tlsRootCAs: opts.TLSCACerts.CertPool,
+			tlsPinMap:  opts.TLSCertificatePin,
 			BasePoller: poller,
 		}
 		poller = BasePoller(&newSSLservice) // Turn the SSL service into a Poller

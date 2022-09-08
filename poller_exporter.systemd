@@ -8,7 +8,7 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/local/bin/poller_exporter -collector.config /etc/poller_exporter.yml
+ExecStart=/usr/local/bin/poller_exporter --config-file /etc/poller_exporter.yml
 
 Restart=always
 RestartSec=10
