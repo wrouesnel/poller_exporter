@@ -63,11 +63,28 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 	}
 
 	constantLabels := prometheus.Labels{
-		"poller_type": PollyerTypeHTTP,
+		"poller_type": PollerTypeHTTP,
 		"hostname":    host.Hostname,
 		"name":        opts.Name,
 		"protocol":    opts.Protocol,
 		"port":        fmt.Sprintf("%d", opts.Port),
+	}
+
+	// HTTP checks need TLS SNI to line up. If a URL has been specified with a
+	// non-blank hostname, then supply that by default if no SNI name is specified.
+	tlsSniName := ""
+	if opts.TLSServerNameIndication != nil {
+		tlsSniName = *opts.TLSServerNameIndication
+	}
+
+	if opts.URL.URL != nil {
+		if opts.URL.Hostname() != "" && tlsSniName == "" {
+			tlsSniName = opts.URL.Hostname()
+		}
+	}
+
+	if tlsSniName != "" {
+		opts.TLSServerNameIndication = &tlsSniName
 	}
 
 	basePoller := NewBasicService(host, opts.BasicServiceConfig, constantLabels)

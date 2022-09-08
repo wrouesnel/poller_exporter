@@ -26,7 +26,7 @@ const MetricLabelFailed = "failed"
 const (
 	PollerTypeBasic             = "basic"
 	PollerTypeChallengeResponse = "challenge-response"
-	PollyerTypeHTTP             = "http"
+	PollerTypeHTTP              = "http"
 )
 
 // PollConnection wraps net.Conn and carries additional information about the

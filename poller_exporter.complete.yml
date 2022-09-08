@@ -150,6 +150,11 @@ hosts:
         timeout: 5s # timeout overrides the global default service timeout
         tls_enable: true # controls whether TLS is started on connection and certificate/expiry/validity metrics collected
         tls_verify_fail_ok: true # accept an invalid certificate as status OK
+        tls_sni_name: myhost # if specified, this TLS SNI name will be sent to the host.
+                        # if omitted and the host is a hostname, then the hostname will be
+                        # sent by default. If blank, then the hostname is not sent as an SNI indication.
+                        # If omitted and an HTTP check with a URL is specified, then the name in the
+                        # HTTP Server URL is used.
         # require an exact match of a certificate to report status OK for this service.
         # generally should be used with tls_verify_fail_ok to track whether the certificate
         # issued by a private CA has changed
