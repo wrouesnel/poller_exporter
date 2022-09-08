@@ -14,12 +14,13 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/common v0.37.0
-	github.com/samber/lo v1.27.0
+	github.com/samber/lo v1.28.0
 	github.com/shaj13/go-guardian/v2 v2.11.5
+	github.com/wrouesnel/go.connect-proxy-scheme v0.0.0-20220908065725-e095b839824f
 	github.com/wrouesnel/multihttp v1.0.0
 	go.uber.org/atomic v1.7.0
 	go.uber.org/zap v1.21.0
-	golang.org/x/net v0.0.0-20220805013720-a33c5aa5df48
+	golang.org/x/net v0.0.0-20220907135653-1e95f45603a7
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/yaml.v3 v3.0.1
 	shanhu.io/virgo v0.0.0-20220803070549-c34ec4ce58b7

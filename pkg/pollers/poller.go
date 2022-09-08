@@ -6,7 +6,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/magisterquis/connectproxy"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"golang.org/x/net/proxy"
@@ -29,13 +28,6 @@ const (
 	PollerTypeChallengeResponse = "challenge-response"
 	PollyerTypeHTTP             = "http"
 )
-
-//nolint:gochecknoinits
-func init() {
-	// Register additional proxy schemes
-	proxy.RegisterDialerType("http", connectproxy.New)
-	proxy.RegisterDialerType("https", connectproxy.New)
-}
 
 // PollConnection wraps net.Conn and carries additional information about the
 // service poll.

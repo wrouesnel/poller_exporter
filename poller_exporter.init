@@ -16,7 +16,7 @@
 NAME=poller_exporter
 # Daemon name, where is the actual executable
 DAEMON=/usr/local/bin/poller_exporter
-ARGS="-collector.config /usr/local/etc/poller_exporter.yml"
+ARGS="--config-file /etc/poller_exporter.yml"
 # pid file for the daemon
 PIDFILE=/var/run/poller_exporter.pid
 

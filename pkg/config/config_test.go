@@ -216,6 +216,8 @@ func (ce *ConfigExpected) TestCompleteConfig(c *C) {
 	c.Check(conf.HostDefault.ServiceDefaults.Timeout, Equals, model.Duration(time.Second*10))
 	c.Check(conf.HostDefault.ServiceDefaults.MaxBytes, Equals, uint64(4096))
 	c.Check(conf.HostDefault.ServiceDefaults.TLSEnable, Equals, false)
+	c.Check(conf.HostDefault.ServiceDefaults.TLSVerifyFailOk, Equals, false)
+
 	c.Check(len(GetPoolCertificates(conf.HostDefault.ServiceDefaults.TLSCACerts.CertPool)), Equals, len(systemPool)+2, Commentf("Check TLS CA certs looks like the system pool + 2 extra certs"))
 
 	// Start checking hosts - convert to map up front
@@ -242,6 +244,14 @@ func (ce *ConfigExpected) TestCompleteConfig(c *C) {
 	c.Check(basicChecks.Port, Equals, uint64(465))
 	c.Check(basicChecks.Timeout, Equals, model.Duration(5*time.Second))
 	c.Check(basicChecks.TLSEnable, Equals, true)
+	c.Check(basicChecks.TLSVerifyFailOk, Equals, true)
+	// The config has an identical cert specified twice, so we should load it exactly once.
+	c.Check(len(basicChecks.TLSCertificatePin.GetCerts()), Equals, 1)
+	// Double check against the pem file
+	pinnedCertSource := lo.Must(certutils.LoadCertificatesFromPem(lo.Must(ioutil.ReadFile("test_data/localhost.crt"))))[0].Raw
+	c.Check(basicChecks.TLSCertificatePin.GetCerts()[0].Raw, DeepEquals, pinnedCertSource)
+
+	basicChecks.TLSCertificatePin.GetCerts()
 
 	serviceCerts := GetPoolCertificates(basicChecks.TLSCACerts.CertPool)
 	c.Check(len(serviceCerts), Equals, 1)

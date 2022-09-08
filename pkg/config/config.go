@@ -88,11 +88,13 @@ type ServiceSettings struct {
 
 // BasicServiceSettings are the common settings all services share.
 type BasicServiceSettings struct {
-	Timeout    model.Duration     `mapstructure:"timeout,omitempty"`     // Number of seconds to wait for response
-	TLSEnable  bool               `mapstructure:"tls_enable,omitempty"`  // The service uses TLS
-	TLSCACerts TLSCertificatePool `mapstructure:"tls_cacerts,omitempty"` // Path to CAfile to verify the service TLS with
-	Proxy      string             `mapstructure:"proxy,omitempty"`       // Proxy configuration for the service
-	ProxyAuth  *BasicAuthConfig   `mapstructure:"proxy_auth,omitempty"`  // Authentication for the proxy service
+	Timeout           model.Duration     `mapstructure:"timeout,omitempty"`             // Number of seconds to wait for response
+	TLSEnable         bool               `mapstructure:"tls_enable,omitempty"`          // The service uses TLS
+	TLSVerifyFailOk   bool               `mapstructure:"tls_verify_fail_ok,omitempty"`  // The service uses TLS
+	TLSCertificatePin *TLSCertificateMap `mapstructure:"tls_certificate_pin,omitempty"` // Map of certificates which *must* be returned by the service. If null, ignored.
+	TLSCACerts        TLSCertificatePool `mapstructure:"tls_cacerts,omitempty"`         // Path to CAfile to verify the service TLS with
+	Proxy             string             `mapstructure:"proxy,omitempty"`               // Proxy configuration for the service
+	ProxyAuth         *BasicAuthConfig   `mapstructure:"proxy_auth,omitempty"`          // Authentication for the proxy service
 }
 
 type ChallengeResponseServiceSettings struct {
