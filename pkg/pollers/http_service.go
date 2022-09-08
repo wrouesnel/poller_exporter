@@ -78,7 +78,7 @@ func NewHTTPService(host *Host, opts config.HTTPServiceConfig) *HTTPService {
 		responseReceived: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
 			Subsystem:   "service",
-			Name:        "http_response_rceived_bool",
+			Name:        "http_response_received_bool",
 			Help:        "Was an HTTP response received?",
 			ConstLabels: constantLabels,
 		}),
