@@ -3,6 +3,7 @@ package pollers
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"math"
 
 	"github.com/wrouesnel/poller_exporter/pkg/config"
 
@@ -107,6 +108,7 @@ func (s *TLSService) scrapeTLS(conn *PollConnection) *PollConnection {
 	opts := x509.VerifyOptions{
 		DNSName:       s.Host().Hostname,
 		Intermediates: intermediates,
+		Roots:         s.tlsRootCAs,
 	}
 
 	if _, err := hostcert.Verify(opts); err != nil {
@@ -134,6 +136,8 @@ func (s *TLSService) scrapeTLS(conn *PollConnection) *PollConnection {
 			s.CertificateMatchesPin.Set(0)
 			s.statusTLS = PollStatusFailed
 		}
+	} else {
+		s.CertificateMatchesPin.Set(math.NaN())
 	}
 
 	return &PollConnection{
