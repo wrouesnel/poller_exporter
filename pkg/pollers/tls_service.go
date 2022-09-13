@@ -4,6 +4,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"math"
+	"net"
+
+	"github.com/samber/lo"
 
 	"github.com/wrouesnel/poller_exporter/pkg/config"
 
@@ -89,6 +92,9 @@ func (s *TLSService) doPoll() *PollConnection {
 
 // Scrape TLS data from a dialed connection.
 func (s *TLSService) scrapeTLS(conn *PollConnection) *PollConnection {
+	s.log().Debug("Establish TLS connnection",
+		zap.String("tls_sni_name", s.tlsSniName),
+		zap.Bool("tls_verify_fail_ok", s.tlsVerifyFailOk))
 	tlsConfig := &tls.Config{
 		ServerName:         s.tlsSniName,
 		InsecureSkipVerify: true, //nolint:gosec
@@ -100,18 +106,31 @@ func (s *TLSService) scrapeTLS(conn *PollConnection) *PollConnection {
 	}
 
 	hostcert := tlsConn.ConnectionState().PeerCertificates[0]
+	s.log().Debug("Host certificate",
+		zap.Int("chain_idx", 0),
+		zap.String("x509_subject", hostcert.Subject.CommonName),
+		zap.Strings("x509_dns_names", hostcert.DNSNames),
+		zap.Strings("x509_ip_addrs", lo.Map(hostcert.IPAddresses, func(ip net.IP, _ int) string { return ip.String() })))
+
 	intermediates := x509.NewCertPool()
-	for _, cert := range tlsConn.ConnectionState().PeerCertificates[1:] {
+	for idx, cert := range tlsConn.ConnectionState().PeerCertificates[1:] {
+		s.log().Debug("Intermediate Certificate",
+			zap.Int("chain_idx", idx+1),
+			zap.String("x509_subject", hostcert.Subject.CommonName),
+			zap.Strings("x509_dns_names", hostcert.DNSNames),
+			zap.Strings("x509_ip_addrs", lo.Map(hostcert.IPAddresses, func(ip net.IP, _ int) string { return ip.String() })))
+
 		intermediates.AddCert(cert)
 	}
 
 	opts := x509.VerifyOptions{
-		DNSName:       s.Host().Hostname,
+		DNSName:       s.tlsSniName,
 		Intermediates: intermediates,
 		Roots:         s.tlsRootCAs,
 	}
 
 	if _, err := hostcert.Verify(opts); err != nil {
+		s.log().Debug("TLS verify failure", zap.Error(err))
 		s.CertificateValid.WithLabelValues(hostcert.Subject.CommonName).Set(0)
 		s.CertificateValidCount.WithLabelValues(MetricLabelFailed).Inc()
 		if s.tlsVerifyFailOk {
@@ -120,6 +139,7 @@ func (s *TLSService) scrapeTLS(conn *PollConnection) *PollConnection {
 			s.statusTLS = PollStatusFailed
 		}
 	} else {
+		s.log().Debug("TLS verify success")
 		s.CertificateValid.WithLabelValues(hostcert.Subject.CommonName).Set(1)
 		s.CertificateValidCount.WithLabelValues(MetricLabelSuccess).Inc()
 		s.statusTLS = PollStatusSuccess
@@ -130,9 +150,11 @@ func (s *TLSService) scrapeTLS(conn *PollConnection) *PollConnection {
 
 	if s.tlsPinMap != nil {
 		if s.tlsPinMap.HasCert(hostcert) {
+			s.log().Debug("Set status okay due to pinned certificate matching")
 			s.CertificateMatchesPin.Set(1)
 			s.statusTLS = PollStatusSuccess
 		} else {
+			s.log().Debug("Set status failed due to pinned certificate NOT matching")
 			s.CertificateMatchesPin.Set(0)
 			s.statusTLS = PollStatusFailed
 		}
