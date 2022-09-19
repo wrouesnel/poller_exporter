@@ -7,8 +7,7 @@ require (
 	github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385
 	github.com/integralist/go-findroot v0.0.0-20160518114804-ac90681525dc
 	github.com/julienschmidt/httprouter v1.3.0
-	github.com/magefile/mage v1.13.0
-	github.com/magisterquis/connectproxy v0.0.0-20200725203833-3582e84f0c9b
+	github.com/magefile/mage v1.14.0
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/errors v0.9.1
