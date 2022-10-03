@@ -8,13 +8,12 @@ require (
 	github.com/integralist/go-findroot v0.0.0-20160518114804-ac90681525dc
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/magefile/mage v1.13.0
-	github.com/magisterquis/connectproxy v0.0.0-20200725203833-3582e84f0c9b
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/common v0.37.0
-	github.com/samber/lo v1.28.0
+	github.com/samber/lo v1.29.0
 	github.com/shaj13/go-guardian/v2 v2.11.5
 	github.com/wrouesnel/go.connect-proxy-scheme v0.0.0-20220908065725-e095b839824f
 	github.com/wrouesnel/multihttp v1.0.0
