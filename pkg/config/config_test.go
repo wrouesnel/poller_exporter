@@ -213,10 +213,18 @@ func (ce *ConfigExpected) TestCompleteConfig(c *C) {
 	c.Check(conf.HostDefault.PingTimeout, Equals, model.Duration(time.Second))
 	c.Check(conf.HostDefault.PingCount, Equals, uint64(3))
 
+	c.Check(conf.HostDefault.ExtraLabels, Not(IsNil))
+	c.Check(conf.HostDefault.ExtraLabels["host_label1"], Equals, "label1-value")
+	c.Check(conf.HostDefault.ExtraLabels["host_label2"], Equals, "label2-value")
+
 	c.Check(conf.HostDefault.ServiceDefaults.Timeout, Equals, model.Duration(time.Second*10))
 	c.Check(conf.HostDefault.ServiceDefaults.MaxBytes, Equals, uint64(4096))
 	c.Check(conf.HostDefault.ServiceDefaults.TLSEnable, Equals, false)
 	c.Check(conf.HostDefault.ServiceDefaults.TLSVerifyFailOk, Equals, false)
+
+	c.Check(conf.HostDefault.ServiceDefaults.ExtraLabels, Not(IsNil))
+	c.Check(conf.HostDefault.ServiceDefaults.ExtraLabels["service_label1"], Equals, "label1-value")
+	c.Check(conf.HostDefault.ServiceDefaults.ExtraLabels["service_label2"], Equals, "label2-value")
 
 	c.Check(len(GetPoolCertificates(conf.HostDefault.ServiceDefaults.TLSCACerts.CertPool)), Equals, len(systemPool)+2, Commentf("Check TLS CA certs looks like the system pool + 2 extra certs"))
 
@@ -236,7 +244,14 @@ func (ce *ConfigExpected) TestCompleteConfig(c *C) {
 	c.Check(hostConf.ServiceDefaults.Timeout, Equals, model.Duration(time.Second*9))
 	c.Check(hostConf.ServiceDefaults.MaxBytes, Equals, uint64(1024))
 	c.Check(hostConf.ServiceDefaults.TLSEnable, Equals, true)
-	c.Check(len(GetPoolCertificates(hostConf.ServiceDefaults.TLSCACerts.CertPool)), Equals, 1, Commentf("Check sngle default cert"))
+	c.Check(len(GetPoolCertificates(hostConf.ServiceDefaults.TLSCACerts.CertPool)), Equals, 1, Commentf("Check single default cert"))
+
+	c.Check(hostConf.ServiceDefaults.ExtraLabels, Not(IsNil))
+	c.Check(hostConf.ExtraLabels["host_label1"], Equals, "some-other-value")
+	c.Check(hostConf.ExtraLabels["host_label2"], Equals, "label2-value")
+
+	c.Check(hostConf.ServiceDefaults.ExtraLabels["service_label1"], Equals, "Changed")
+	c.Check(hostConf.ServiceDefaults.ExtraLabels["service_label2"], Equals, "label2-value")
 
 	basicChecks := hostConf.BasicChecks[0]
 	c.Check(basicChecks.Name, Equals, "SMTP")
@@ -256,6 +271,11 @@ func (ce *ConfigExpected) TestCompleteConfig(c *C) {
 	serviceCerts := GetPoolCertificates(basicChecks.TLSCACerts.CertPool)
 	c.Check(len(serviceCerts), Equals, 1)
 
+	c.Check(basicChecks.ExtraLabels["host_label1"], Equals, "This label is reinstated despite the service setting")
+	//c.Check(basicChecks.ExtraLabels["host_label2"], Equals, "label2-value")
+	c.Check(basicChecks.ExtraLabels["service_label1"], Equals, "Changed")
+	c.Check(basicChecks.ExtraLabels["service_label2"], Equals, "Changed on the service")
+
 	crChecks := hostConf.ChallengeResponseChecks[0]
 	c.Check(crChecks.Name, Equals, "CustomDaemon")
 	c.Check(crChecks.Protocol, Equals, "tcp")
@@ -263,6 +283,11 @@ func (ce *ConfigExpected) TestCompleteConfig(c *C) {
 	c.Check(crChecks.Timeout, Equals, model.Duration(6*time.Second))
 	c.Check(crChecks.TLSEnable, Equals, false)
 	c.Check(len(GetPoolCertificates(crChecks.TLSCACerts.CertPool)), Equals, 2, Commentf("challenge_response has more certs"))
+
+	c.Check(crChecks.ExtraLabels["host_label1"], Equals, "You can do this, but shouldn't")
+	//c.Check(crChecks.ExtraLabels["host_label2"], Equals, "label2-value")
+	c.Check(crChecks.ExtraLabels["service_label1"], Equals, "Changed")
+	c.Check(crChecks.ExtraLabels["service_label2"], Equals, "CR service")
 
 	c.Check(*crChecks.ChallengeString, Equals, "MY_UNIQUE_HEADER")
 	c.Check([]byte(crChecks.ChallengeBinary), DeepEquals, []byte{114, 149, 9, 49, 56, 189, 30, 220, 186, 59, 139, 28, 127, 66, 178, 97})
@@ -280,6 +305,11 @@ func (ce *ConfigExpected) TestCompleteConfig(c *C) {
 
 	httpServiceCerts := GetPoolCertificates(httpChecks.TLSCACerts.CertPool)
 	c.Check(len(httpServiceCerts), Equals, 1)
+
+	//c.Check(httpChecks.ExtraLabels["host_label1"], Equals, "label1-value")
+	c.Check(httpChecks.ExtraLabels["host_label2"], Equals, "You can do this, but shouldn't")
+	c.Check(httpChecks.ExtraLabels["service_label1"], Equals, "HTTP service")
+	c.Check(httpChecks.ExtraLabels["service_label2"], Equals, "label2-value")
 
 	c.Check(*httpChecks.ChallengeString, Equals, "some-data")
 	c.Check([]byte(httpChecks.ChallengeBinary), DeepEquals, []byte{114, 149, 9, 49, 56, 189, 30, 220, 186, 59, 139, 28, 127, 66, 178, 97})

@@ -84,6 +84,19 @@ func NewBasicService(host *Host, opts config.BasicServiceConfig, constantLabels 
 		}
 	}
 
+	// Append additional labels from host and service
+	if host.ExtraLabels != nil {
+		for labelKey, labelValue := range host.ExtraLabels {
+			constantLabels[labelKey] = labelValue
+		}
+	}
+
+	if opts.ExtraLabels != nil {
+		for labelKey, labelValue := range opts.ExtraLabels {
+			constantLabels[labelKey] = labelValue
+		}
+	}
+
 	newBasicService := &BasicService{
 		labels:   constantLabels,
 		host:     host,

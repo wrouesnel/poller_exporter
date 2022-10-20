@@ -5,13 +5,22 @@
 
 host_defaults:
   disable_ping: true
-
+  extra_labels:
+    config_type: "example"
+    category: "General"
+    primary: "no"
+  service_defaults:
+    extra_labels:
+      service_config_type: "service-example"
+      redirect: "false"
 hosts:
   - hostname: dns.google
     basic_checks:
       - name: DNS
         proto: tcp
         port: 53
+        extra_labels:
+          category: "DNS"
   - hostname: smtp.gmail.com
     challenge_response_checks:
       - name: SMTPS
@@ -20,7 +29,12 @@ hosts:
         tls_enable: true
         response: 220 smtp.gmail.com
         max_bytes: 128
+        extra_labels:
+          category: "Email"
   - hostname: google.com
+    extra_labels:
+      category: "Search"
+      primary: "no"
     http_checks:
     - name: HTTP
       proto: tcp
@@ -28,6 +42,8 @@ hosts:
       http_success_status: "301"
       url: http://google.com/
       http_enable_redirects: false
+      extra_labels:
+        redirect: "true"
     - name: HTTPS
       proto: tcp
       port: 443
@@ -36,3 +52,6 @@ hosts:
       http_success_status: "200"
       http_enable_redirects: true
       response: "<!doctype html><html"
+      extra_labels:
+        redirect: "false"
+        primary: "yes"

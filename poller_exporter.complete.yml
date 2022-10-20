@@ -43,6 +43,13 @@ host_defaults:
   ping_timeout: 1s
   # default number of ICMP pings to send before considering a host down
   ping_count: 3
+  # prometheus labels to add to metrics collected by a host. This value is
+  # global to all hosts and *must* be set to allow a label to be set or changed
+  # per host. These values are inherited by services of the host, but can be
+  # overridden.
+  extra_labels:
+    host_label1: label1-value
+    host_label2: label2-value
 
   # defaults for basic services
   service_defaults:
@@ -120,6 +127,12 @@ host_defaults:
         YnFchkZgD73t89RlKkxYHhrl8TZjAbKwC1/KG4RVt8U+YvmwqH/38BDkoAS4U1xf
         BjbonWhHde22UQ==
         -----END CERTIFICATE-----
+    # prometheus labels to add to metrics collected by services. This value is
+    # global to all services and *must* be set to allow a label to be set or changed
+    # per service.
+    extra_labels:
+      service_label1: label1-value
+      service_label2: label2-value
   
 
 
@@ -133,6 +146,12 @@ hosts:
     ping_timeout: 5s # override global ping_timeout for just this host
     ping_count: 2 # override global ping_count for just this host
 
+    # extra Prometheus labels to apply to all metrics collected from this host
+    extra_labels:
+      # Existing values can be set to new values, but values not defined in
+      # defaults above cannot be introduced here.
+      host_label1: "some-other-value"
+
     # service_defaults can also be overridden per host as it can globally.
     service_defaults:
       timeout: 9s
@@ -140,6 +159,10 @@ hosts:
       tls_enable: true
       tls_cacerts:
         - test_data/tls_cacerts/some.crt
+      # extra Prometheus labels to apply to all metrics collected services for
+      # this host.
+      extra_labels:
+        service_label1: "Changed"
 
     # basic checks simply test whether a TCP port is open. They will also check
     # the status of TLS certificates if requested.
@@ -196,6 +219,13 @@ hosts:
         tls_cacerts: # tls_cacert specifies to try validating the certificate from the given list
         - test_data/tls_cacerts/other.crt
 
+        # extra Prometheus labels to apply metrics collected for this service.
+        extra_labels:
+          # Setting an existing value to `null` drops the label out from being
+          # collected.
+          host_label1: "This label is reinstated despite the service setting"
+          service_label2: "Changed on the service"
+
     # challenge-response checks send a challenge to the service and look for a response, returning
     # metrics indicating whether it was found
     challenge_response_checks:
@@ -208,6 +238,9 @@ hosts:
         tls_cacerts:
         - test_data/tls_cacerts/other.crt
         - test_data/tls_cacerts/some.crt
+        extra_labels:
+          host_label1: You can do this, but shouldn't
+          service_label2: CR service
         # these settings are added for challenge_response_checks
         challenge: MY_UNIQUE_HEADER # challenge is a byte-string to send to the service after connecting
                                     # and after TLS has been established (if enabled).
@@ -216,7 +249,7 @@ hosts:
         challenge_b64: cpUJMTi9Hty6O4scf0KyYQ==
         response_re: RESPONSE_HEADER # response_re is a golang regex which will be run against
                                      # the raw bytes returned after sending the challenge upto
-                                     # max_bytes
+                                    # max_bytes
         response: literal-value # response is an alternative to response_re and is a prefix
                                 # looked for in the raw bytes returned after sending challenge.
                                 # A typical use would be the SSH-2.0- header.
@@ -236,6 +269,9 @@ hosts:
         tls_enable: true
         tls_cacerts:
         - test_data/tls_cacerts/other.crt
+        extra_labels:
+          host_label2: You can do this, but shouldn't
+          service_label1: HTTP service
         # http pollers user challenge specifications for HTTP request bodies
         challenge: some-data
         challenge_b64: cpUJMTi9Hty6O4scf0KyYQ==

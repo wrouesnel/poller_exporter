@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 	"reflect"
 
+	"github.com/samber/lo"
+
 	"go.uber.org/zap"
 
 	"github.com/mitchellh/mapstructure"
@@ -13,6 +15,7 @@ import (
 
 var (
 	ErrMapStructureDecode = errors.New("MapStructureDecode function failed")
+	ErrInconsistentLabels = errors.New("Extra Prometheus labels found without defaults set")
 )
 
 // loadDefaultConfigMap returns the config file which is embedded in the binary
@@ -100,7 +103,7 @@ func LoadAndSanitizeConfig(configData []byte) (string, error) {
 }
 
 // Load loads a configuration file from the supplied bytes.
-//nolint:forcetypeassert,funlen,cyclop
+//nolint:forcetypeassert,funlen,cyclop,gocognit
 func Load(configData []byte) (*Config, error) {
 	defaultMap := loadDefaultConfigMap()
 	configMap, err := loadConfigMap(configData)
@@ -166,6 +169,63 @@ func Load(configData []byte) (*Config, error) {
 	if err := decoder.Decode(configMap); err != nil {
 		return nil, errors.Wrap(err, "Load: second-pass config map decoding failed")
 	}
+
+	// Check that Prometheus extra label keys are consistent.
+	hostDefaultKeys := lo.Keys(cfg.HostDefault.ExtraLabels)
+	serviceDefaultKeys := lo.Union(hostDefaultKeys, lo.Keys(cfg.HostDefault.ServiceDefaults.ExtraLabels))
+	for _, host := range cfg.Hosts {
+		hostKeys := lo.Keys(host.ExtraLabels)
+		if _, right := lo.Difference(hostDefaultKeys, hostKeys); len(right) > 0 {
+			zap.L().Error("Extra keys must have default values from host_defaults, and this host has more then allowed",
+				zap.Strings("allowed_keys", hostDefaultKeys),
+				zap.Strings("undefined_keys", right),
+				zap.String("hostname", host.Hostname))
+			return nil, errors.Wrapf(ErrInconsistentLabels, "Load: undefined labels found for host: %v", host.Hostname)
+		}
+
+		hostServiceDefaultKeys := lo.Keys(host.ServiceDefaults.ExtraLabels)
+		if _, right := lo.Difference(serviceDefaultKeys, hostServiceDefaultKeys); len(right) > 0 {
+			zap.L().Error("Extra keys must have default values from host_defaults.service_defaults, and this host has more then allowed",
+				zap.Strings("allowed_keys", hostServiceDefaultKeys),
+				zap.Strings("undefined_keys", right),
+				zap.String("hostname", host.Hostname))
+			return nil, errors.Wrapf(ErrInconsistentLabels, "Load: undefined labels found for host: %v", host.Hostname)
+		}
+
+		for _, service := range host.BasicChecks {
+			if _, right := lo.Difference(serviceDefaultKeys, lo.Keys(service.ExtraLabels)); len(right) > 0 {
+				zap.L().Error("Extra keys must have default values from host_defaults.service_defaults, and this host has more then allowed",
+					zap.Strings("allowed_keys", hostServiceDefaultKeys),
+					zap.Strings("undefined_keys", right),
+					zap.String("hostname", host.Hostname),
+					zap.String("service", service.Name))
+				return nil, errors.Wrapf(ErrInconsistentLabels, "Load: undefined labels found for host: %v", host.Hostname)
+			}
+		}
+
+		for _, service := range host.ChallengeResponseChecks {
+			if _, right := lo.Difference(serviceDefaultKeys, lo.Keys(service.ExtraLabels)); len(right) > 0 {
+				zap.L().Error("Extra keys must have default values from host_defaults.service_defaults, and this host has more then allowed",
+					zap.Strings("allowed_keys", hostServiceDefaultKeys),
+					zap.Strings("undefined_keys", right),
+					zap.String("hostname", host.Hostname),
+					zap.String("service", service.Name))
+				return nil, errors.Wrapf(ErrInconsistentLabels, "Load: undefined labels found for host: %v", host.Hostname)
+			}
+		}
+
+		for _, service := range host.HTTPChecks {
+			if _, right := lo.Difference(serviceDefaultKeys, lo.Keys(service.ExtraLabels)); len(right) > 0 {
+				zap.L().Error("Extra keys must have default values from host_defaults.service_defaults, and this host has more then allowed",
+					zap.Strings("allowed_keys", hostServiceDefaultKeys),
+					zap.Strings("undefined_keys", right),
+					zap.String("hostname", host.Hostname),
+					zap.String("service", service.Name))
+				return nil, errors.Wrapf(ErrInconsistentLabels, "Load: undefined labels found for host: %v", host.Hostname)
+			}
+		}
+	}
+
 	return cfg, nil
 }
 

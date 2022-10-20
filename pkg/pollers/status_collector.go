@@ -5,6 +5,8 @@ package pollers
 import (
 	"sync"
 
+	"github.com/samber/lo"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 )
@@ -17,7 +19,12 @@ type ServiceStatusMetricCollector struct {
 }
 
 // NewServiceStatusMetrics creates a new service status metric collector.
-func NewServiceStatusMetrics() *ServiceStatusMetricCollector {
+func NewServiceStatusMetrics(labels []string) *ServiceStatusMetricCollector {
+	if labels == nil {
+		labels = []string{}
+	}
+	fullLabels := lo.Union([]string{"poller_type", "hostname", "name", "protocol", "port"}, labels)
+
 	return &ServiceStatusMetricCollector{
 		ServiceStatus: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -26,7 +33,7 @@ func NewServiceStatusMetrics() *ServiceStatusMetricCollector {
 				Name:      "status_boolean",
 				Help:      "whether the poller succeeded by its current configuration - 1 means true, 0 false, NaN unknown",
 			},
-			[]string{"poller_type", "hostname", "name", "protocol", "port"},
+			fullLabels,
 		),
 		locker: &sync.Mutex{},
 		l:      zap.L(),

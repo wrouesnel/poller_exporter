@@ -49,6 +49,14 @@ func NewHost(opts *config.HostConfig) *Host {
 		zap.L().Error("Received nil hostConfig specification")
 		return nil
 	}
+
+	hostLabels := prometheus.Labels{"hostname": opts.Hostname}
+	if opts.ExtraLabels != nil {
+		for labelKey, labelValue := range opts.ExtraLabels {
+			hostLabels[labelKey] = labelValue
+		}
+	}
+
 	// Setup the host
 	newHost := Host{
 		IP: "", // Initially unresolved
@@ -57,35 +65,35 @@ func NewHost(opts *config.HostConfig) *Host {
 			Subsystem:   "host",
 			Name:        "polls_total",
 			Help:        "Number of times this host has been polled by the exporter",
-			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+			ConstLabels: hostLabels,
 		}),
 		LastPollTime: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
 			Subsystem:   "host",
 			Name:        "last_poll_time",
 			Help:        "Last time this host was polled by the exporter",
-			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+			ConstLabels: hostLabels,
 		}),
 		Resolvable: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
 			Subsystem:   "host",
 			Name:        "resolvable_boolean",
 			Help:        "Did the last attempt to DNS resolve this host succeed?",
-			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+			ConstLabels: hostLabels,
 		}),
 		PathReachable: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
 			Subsystem:   "host",
 			Name:        "routable_boolean",
 			Help:        "Is the resolved IP address routable on this hosts network",
-			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+			ConstLabels: hostLabels,
 		}),
 		PingLatency: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   Namespace,
 			Subsystem:   "host",
 			Name:        "latency_microseconds",
 			Help:        "service latency in microseconds",
-			ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+			ConstLabels: hostLabels,
 		}),
 		// Cumulative counters
 		ResolvableCount: prometheus.NewCounterVec(
@@ -94,7 +102,7 @@ func NewHost(opts *config.HostConfig) *Host {
 				Subsystem:   "host",
 				Name:        "resolvable_total",
 				Help:        "cumulative successful DNS resolutions",
-				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+				ConstLabels: hostLabels,
 			},
 			[]string{"result"},
 		),
@@ -104,7 +112,7 @@ func NewHost(opts *config.HostConfig) *Host {
 				Subsystem:   "host",
 				Name:        "routable_total",
 				Help:        "cumulative successful network route resolutions",
-				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+				ConstLabels: hostLabels,
 			},
 			[]string{"result"},
 		),
@@ -114,7 +122,7 @@ func NewHost(opts *config.HostConfig) *Host {
 				Subsystem:   "host",
 				Name:        "ping_count_total",
 				Help:        "cumulative number of pings sent to the host",
-				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+				ConstLabels: hostLabels,
 			},
 			[]string{"result"},
 		),
@@ -124,7 +132,7 @@ func NewHost(opts *config.HostConfig) *Host {
 				Subsystem:   "host",
 				Name:        "latency_seconds_total",
 				Help:        "cumulative service latency in seconds",
-				ConstLabels: prometheus.Labels{"hostname": opts.Hostname},
+				ConstLabels: hostLabels,
 			},
 		),
 

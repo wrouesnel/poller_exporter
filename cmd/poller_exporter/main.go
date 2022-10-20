@@ -185,7 +185,10 @@ func main() {
 	// We don't allow duplicate hosts, but also don't want to panic just due
 	// to a typo, so keep track and skip duplicates here.
 	seenHosts := make(map[string]bool)
-	statusCollecter := pollers.NewServiceStatusMetrics()
+
+	// The status checker needs to know which labels can appear so it can set them.
+	customServiceLabels := lo.Union(lo.Keys(cfg.HostDefault.ExtraLabels), lo.Keys(cfg.HostDefault.ServiceDefaults.ExtraLabels))
+	statusCollecter := pollers.NewServiceStatusMetrics(customServiceLabels)
 	prometheus.MustRegister(statusCollecter)
 	realIdx := 0
 	for _, hostCfg := range cfg.Hosts {

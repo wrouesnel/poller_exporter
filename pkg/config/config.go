@@ -61,10 +61,13 @@ type CollectorConfig struct {
 // HostSettings contains the poller configuration which is applied per hostname
 // (as opposed to per service).
 type HostSettings struct {
-	PollFrequency   model.Duration  `mapstructure:"poll_frequency,omitempty"` // Frequency to poll this specific host
-	PingDisable     bool            `mapstructure:"disable_ping,omitempty"`   // Disable ping checks for this host
-	PingTimeout     model.Duration  `mapstructure:"ping_timeout,omitempty"`   // Maximum ping timeout
-	PingCount       uint64          `mapstructure:"ping_count,omitempty"`     // Number of pings to send each poll
+	PollFrequency model.Duration `mapstructure:"poll_frequency,omitempty"` // Frequency to poll this specific host
+	PingDisable   bool           `mapstructure:"disable_ping,omitempty"`   // Disable ping checks for this host
+	PingTimeout   model.Duration `mapstructure:"ping_timeout,omitempty"`   // Maximum ping timeout
+	PingCount     uint64         `mapstructure:"ping_count,omitempty"`     // Number of pings to send each poll
+
+	ExtraLabels map[string]string `mapstructure:"extra_labels,omitempty"` // Extra Prometheus Metrics to add to collected metrics
+
 	ServiceDefaults ServiceSettings `mapstructure:"service_defaults,omitempty"`
 }
 
@@ -96,6 +99,7 @@ type BasicServiceSettings struct {
 	TLSCACerts              TLSCertificatePool `mapstructure:"tls_cacerts,omitempty"`         // Path to CAfile to verify the service TLS with
 	Proxy                   string             `mapstructure:"proxy,omitempty"`               // Proxy configuration for the service
 	ProxyAuth               *BasicAuthConfig   `mapstructure:"proxy_auth,omitempty"`          // Authentication for the proxy service
+	ExtraLabels             map[string]string  `mapstructure:"extra_labels,omitempty"`        // Extra Prometheus Metrics to add to collected metrics
 }
 
 type ChallengeResponseServiceSettings struct {
