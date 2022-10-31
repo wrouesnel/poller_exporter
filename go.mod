@@ -3,12 +3,11 @@ module github.com/wrouesnel/poller_exporter
 go 1.18
 
 require (
-	github.com/alecthomas/kong v0.6.1
+	github.com/alecthomas/kong v0.7.0
 	github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385
 	github.com/integralist/go-findroot v0.0.0-20160518114804-ac90681525dc
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/magefile/mage v1.14.0
-	github.com/magisterquis/connectproxy v0.0.0-20200725203833-3582e84f0c9b
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/errors v0.9.1
@@ -32,7 +31,6 @@ require (
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -43,7 +41,6 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/rogpeppe/go-internal v1.6.1 // indirect
 	github.com/shaj13/libcache v1.0.5 // indirect
-	github.com/stretchr/testify v1.8.0 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
