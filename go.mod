@@ -3,7 +3,7 @@ module github.com/wrouesnel/poller_exporter
 go 1.18
 
 require (
-	github.com/alecthomas/kong v0.6.1
+	github.com/alecthomas/kong v0.7.1
 	github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385
 	github.com/integralist/go-findroot v0.0.0-20160518114804-ac90681525dc
 	github.com/julienschmidt/httprouter v1.3.0
