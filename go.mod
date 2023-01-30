@@ -19,7 +19,7 @@ require (
 	github.com/wrouesnel/multihttp v1.0.0
 	go.uber.org/atomic v1.10.0
 	go.uber.org/zap v1.23.0
-	golang.org/x/net v0.4.0
+	golang.org/x/net v0.5.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/yaml.v3 v3.0.1
 	shanhu.io/virgo v0.0.0-20221015183456-75e69f830bac
@@ -45,6 +45,6 @@ require (
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/exp v0.0.0-20221019170559-20944726eadf // indirect
-	golang.org/x/sys v0.3.0 // indirect
+	golang.org/x/sys v0.4.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
