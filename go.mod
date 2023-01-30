@@ -18,7 +18,7 @@ require (
 	github.com/wrouesnel/go.connect-proxy-scheme v0.0.0-20220926121750-2b62bcbfc923
 	github.com/wrouesnel/multihttp v1.0.0
 	go.uber.org/atomic v1.10.0
-	go.uber.org/zap v1.23.0
+	go.uber.org/zap v1.24.0
 	golang.org/x/net v0.4.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/yaml.v3 v3.0.1
