@@ -13,7 +13,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/common v0.39.0
-	github.com/samber/lo v1.37.0
+	github.com/samber/lo v1.38.1
 	github.com/shaj13/go-guardian/v2 v2.11.5
 	github.com/wrouesnel/go.connect-proxy-scheme v0.0.0-20220926121750-2b62bcbfc923
 	github.com/wrouesnel/multihttp v1.0.0
