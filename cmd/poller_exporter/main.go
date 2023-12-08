@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/wrouesnel/multihttp"
+	"github.com/wrouesnel/multihttp" //nolint: typecheck
 
 	"github.com/wrouesnel/poller_exporter/assets"
 	"github.com/wrouesnel/poller_exporter/pkg/config"

@@ -650,6 +650,7 @@ func Coverage() error {
 }
 
 // All runs a full suite suitable for CI
+//
 //nolint:unparam
 func All() error {
 	mg.SerialDeps(Style, Lint, Test, Coverage, Release)
@@ -657,6 +658,7 @@ func All() error {
 }
 
 // GithubReleaseMatrix emits a line to setup build matrix jobs for release builds.
+//
 //nolint:unparam
 func GithubReleaseMatrix() error {
 	output := make([]string, 0, len(platforms))
@@ -737,6 +739,7 @@ func Binary() error {
 }
 
 // doReleaseBin handles the deferred building of an actual release binary.
+//
 //nolint:gocritic
 func doReleaseBin(OSArch string) func() error {
 	platform, ok := platformsLookup[OSArch]
@@ -754,6 +757,7 @@ func doReleaseBin(OSArch string) func() error {
 }
 
 // ReleaseBin builds cross-platform release binaries under the bin/ directory.
+//
 //nolint:gocritic
 func ReleaseBin(OSArch string) error {
 	return doReleaseBin(OSArch)()
@@ -770,6 +774,7 @@ func ReleaseBinAll() error {
 }
 
 // Release builds release archives under the release/ directory.
+//
 //nolint:gocritic
 func doRelease(OSArch string) func() error {
 	platform, ok := platformsLookup[OSArch]
@@ -825,6 +830,7 @@ func PlatformTargets() error {
 }
 
 // Release a binary archive for a specific platform
+//
 //nolint:gocritic
 func Release(OSArch string) error {
 	return doRelease(OSArch)()
@@ -857,6 +863,7 @@ func Clean() error {
 }
 
 // Debug prints the value of internal state variables
+//
 //nolint:unparam
 func Debug() error {
 	fmt.Println("Source Files:", goSrc)

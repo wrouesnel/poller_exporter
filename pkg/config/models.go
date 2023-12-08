@@ -35,6 +35,7 @@ var (
 type HTTPStatusRange map[int]bool
 
 // FromString initializes a new HTTPStatusRange from the given string specifier
+//
 //nolint:cyclop
 func (hsr *HTTPStatusRange) FromString(ranges string) error {
 	const HTTPStatusRangeBase int = 10
@@ -279,7 +280,7 @@ func (t *TLSCertificateMap) AddCert(cert *x509.Certificate) error {
 }
 
 // MapStructureDecode implements unmarshalling for TLSCertificateMap
-//nolint: funlen,cyclop
+// nolint: funlen,cyclop
 func (t *TLSCertificateMap) MapStructureDecode(input interface{}) error {
 	// Get the slice
 	interfaceSlice, ok := input.([]interface{})
@@ -358,6 +359,7 @@ type TLSCertificatePool struct {
 }
 
 // MapStructureDecode implements the yaml.Unmarshaler interface for tls_cacerts.
+//
 //nolint:funlen,cyclop
 func (t *TLSCertificatePool) MapStructureDecode(input interface{}) error {
 	// Get the slice

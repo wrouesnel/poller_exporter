@@ -38,7 +38,7 @@ func getICMPSequence() uint16 {
 
 // Sends a single ICMP echo to an IP and returns success and latency information.
 // Borrowed from BrianBrazil's blackbox exporter
-//nolint: funlen,gocyclop,cyclop,nonamedreturns
+// nolint: funlen,gocyclop,cyclop,nonamedreturns
 func Ping(ip net.IP, maxRTT time.Duration) (success bool, latency time.Duration) {
 	log := zap.L()
 	deadline := time.Now().Add(maxRTT)

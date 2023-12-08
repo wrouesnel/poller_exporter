@@ -62,6 +62,7 @@ func (crms *ChallengeResponseMetricSet) Collect(ch chan<- prometheus.Metric) {
 }
 
 // NewChallengeResponseMetricSet initializes a new set of metrics with the given constant labels.
+//
 //nolint:funlen
 func NewChallengeResponseMetricSet(constantLabels prometheus.Labels) ChallengeResponseMetricSet {
 	metricSet := ChallengeResponseMetricSet{
