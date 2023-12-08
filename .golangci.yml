@@ -24,6 +24,8 @@ linters:
     - exhaustruct  # ultimately too noisy for most coding
     # This one is just infuriating, produces a lot of warnings, and doesn't matter.
     - godot
+    # This has become impossible meet while still using fmt
+    - nolintlint
     # These all stopped working suddenly due to a non-existent compilation error.
     # Retry them regularly.
     - stylecheck
@@ -32,6 +34,7 @@ linters:
     - gosimple
     - govet
     - unused
+
 
 issues:
   exclude-rules:

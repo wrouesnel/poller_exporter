@@ -19,6 +19,7 @@ var (
 )
 
 // basicValidator generates a basic auth validator function from the supplied map.
+//
 //nolint:unparam
 func basicValidator(userMap map[string]map[string]struct{}) (basic.AuthenticateFunc, error) {
 	return func(ctx context.Context, r *http.Request, username, password string) (auth.Info, error) {

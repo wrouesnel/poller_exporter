@@ -72,6 +72,7 @@ func configMapMerge(left, right map[string]interface{}) {
 }
 
 // Decoder returns the decoder for config maps.
+//
 //nolint:exhaustruct
 func Decoder(target interface{}, allowUnused bool) (*mapstructure.Decoder, error) {
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -103,6 +104,7 @@ func LoadAndSanitizeConfig(configData []byte) (string, error) {
 }
 
 // Load loads a configuration file from the supplied bytes.
+//
 //nolint:forcetypeassert,funlen,cyclop,gocognit
 func Load(configData []byte) (*Config, error) {
 	defaultMap := loadDefaultConfigMap()

@@ -31,6 +31,7 @@ const (
 
 // PollConnection wraps net.Conn and carries additional information about the
 // service poll.
+//
 //nolint:containedctx
 type PollConnection struct {
 	net.Conn
