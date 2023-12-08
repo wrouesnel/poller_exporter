@@ -3,11 +3,15 @@ package pollers
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/samber/lo"
 
 	"github.com/pkg/errors"
 	"go.uber.org/atomic"
@@ -236,7 +240,7 @@ func (hs *HTTPService) isWriter() bool {
 func (hs *HTTPService) Poll() {
 	l := hs.log().With(zap.String("verb", hs.config.Verb.String()),
 		zap.String("hostname", hs.Host().Hostname),
-		zap.Uint64("verb", hs.Port()),
+		zap.Uint64("port", hs.Port()),
 	)
 
 	l.Debug("Getting network connection from base poller")
@@ -272,7 +276,16 @@ func (hs *HTTPService) Poll() {
 	}
 
 	l.Debug("Creating new HTTP client for request")
-	client, redirectCount := NewHTTPClient(countingConn, hs.config.EnableRedirects, hs.config.HTTPMaxRedirects)
+	client, redirectCount := NewHTTPClient(countingConn,
+		hs.config.EnableRedirects, hs.config.HTTPMaxRedirects,
+		httpTLSConfig{
+			TLSEnable:               hs.config.TLSEnable,
+			TLSVerifyFailOk:         hs.config.TLSVerifyFailOk,
+			TLSServerNameIndication: hs.config.TLSServerNameIndication,
+			TLSCertificatePin:       hs.config.TLSCertificatePin,
+			TLSCACerts:              hs.config.TLSCACerts,
+		},
+	)
 
 	// Get the URL
 	var url url.URL
@@ -418,12 +431,129 @@ func (hs *HTTPService) Poll() {
 
 var ErrTooManyRedirects = errors.New("Too many redirects")
 
+// httpTLSConfig is a local struct used to pass TLS config parameters to the HTTP client creator function.
+// This is necessary because in the case of redirects to TLS enabled servers, we need to pass through
+// the underlying TLS config in order to get sensible polling.
+type httpTLSConfig struct {
+	TLSEnable               bool
+	TLSVerifyFailOk         bool
+	TLSServerNameIndication *string
+	TLSCertificatePin       *config.TLSCertificateMap
+	TLSCACerts              config.TLSCertificatePool
+}
+
 // NewHTTPClient returns an HTTP client which talks over the already established
 // connection.
-func NewHTTPClient(conn *PollConnection, enableRedirects bool, maxRedirects int64) (*http.Client, *atomic.Int64) {
+func NewHTTPClient(conn *PollConnection, enableRedirects bool, maxRedirects int64, tlsOptions httpTLSConfig) (*http.Client, *atomic.Int64) {
 	redirectCount := atomic.NewInt64(0)
 	connectionUsed := atomic.NewBool(false)
 	clientDialer := conn.Dialer()
+
+	dialContextFn := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		l := zap.L().With(
+			zap.String("network", network),
+			zap.String("addr", addr),
+			zap.Bool("http_redirect_conn", true),
+		)
+
+		if connectionUsed.Load() {
+			// If the connection was already used then the HTTP client will close it.
+			// Our contract with the user is if they want redirects they want to see
+			// if the HTTP winds up somewhere sensible - but for that we need to
+			// allow connections to other locations while still respecting the
+			// deadline on the poll as it was originally established.
+			// PollConnection implements net.Conn but carries a deadline through
+			// for us to dial new connections with.
+			newConn, err := clientDialer.DialContext(ctx, network, addr)
+			if newConn != nil {
+				if derr := newConn.SetDeadline(conn.deadline); derr != nil {
+					l.Error("Error setting deadline on new connction for HTTP transport", zap.Error(err))
+				}
+			}
+			return newConn, err //nolint:wrapcheck
+		}
+		connectionUsed.Store(true)
+		return conn, nil
+	}
+
+	dialTLSContextFn := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// If the redirect is to a TLS endpoint, then we want to carry through the
+		// TLS settings from the underlying poller. This requires us to partially
+		// reimplemnt the TLS poller checks, but we won't record the outcome - intermediately
+		// broken TLS isn't something we bother checking since redirects can go anywhere.
+
+		l := zap.L().With(
+			zap.String("network", network),
+			zap.String("addr", addr),
+			zap.Bool("http_redirect_conn", true),
+		)
+
+		// Start by invoking the underlying connection
+		conn, err := dialContextFn(ctx, network, addr)
+		if err != nil {
+			return conn, err
+		}
+
+		// Now do the TLS setup
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: true, //nolint:gosec
+		}
+
+		tlsSNIName := ""
+		if tlsOptions.TLSServerNameIndication != nil {
+			tlsSNIName = *tlsOptions.TLSServerNameIndication
+		}
+		tlsConfig.ServerName = tlsSNIName
+
+		tlsConn := tls.Client(conn, tlsConfig)
+		if err := tlsConn.Handshake(); err != nil {
+			return nil, err
+		}
+
+		// Execute a manual TLS certificate check. Log all steps since with redirects it
+		// might be interesting to see what we're checking.
+		hostcert := tlsConn.ConnectionState().PeerCertificates[0]
+		l.Debug("Host certificate",
+			zap.Int("chain_idx", 0),
+			zap.String("x509_subject", hostcert.Subject.CommonName),
+			zap.Strings("x509_dns_names", hostcert.DNSNames),
+			zap.Strings("x509_ip_addrs", lo.Map(hostcert.IPAddresses, func(ip net.IP, _ int) string { return ip.String() })))
+
+		intermediates := x509.NewCertPool()
+		for idx, cert := range tlsConn.ConnectionState().PeerCertificates[1:] {
+			l.Debug("Intermediate Certificate",
+				zap.Int("chain_idx", idx+1),
+				zap.String("x509_subject", hostcert.Subject.CommonName),
+				zap.Strings("x509_dns_names", hostcert.DNSNames),
+				zap.Strings("x509_ip_addrs", lo.Map(hostcert.IPAddresses, func(ip net.IP, _ int) string { return ip.String() })))
+
+			intermediates.AddCert(cert)
+		}
+
+		opts := x509.VerifyOptions{
+			DNSName:       tlsSNIName,
+			Intermediates: intermediates,
+			Roots:         tlsOptions.TLSCACerts.CertPool,
+		}
+
+		if _, err := hostcert.Verify(opts); err != nil {
+			l.Debug("TLS verify failure", zap.Error(err))
+			if !tlsOptions.TLSVerifyFailOk {
+				return nil, err
+			}
+		}
+
+		if tlsOptions.TLSCertificatePin != nil {
+			if !tlsOptions.TLSCertificatePin.HasCert(hostcert) {
+				l.Debug("Connection failed due to TLS certificate pin not matching")
+				return nil, errors.New("TLS certificate pin did not match")
+			}
+		}
+
+		// TLS connection for redirects succeeded.
+		return tlsConn, nil
+	}
+
 	return &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 1 {
@@ -446,26 +576,8 @@ func NewHTTPClient(conn *PollConnection, enableRedirects bool, maxRedirects int6
 		Transport: &http.Transport{
 			DisableKeepAlives: true,
 			MaxConnsPerHost:   1,
-			DialContext: func(ctx context.Context, netw, addr string) (net.Conn, error) {
-				if connectionUsed.Load() {
-					// If the connection was already used then the HTTP client will close it.
-					// Our contract with the user is if they want redirects they want to see
-					// if the HTTP winds up somewhere sensible - but for that we need to
-					// allow connections to other locations while still respecting the
-					// deadline on the poll as it was originally established.
-					// PollConnection implements net.Conn but carries a deadline through
-					// for us to dial new connections with.
-					newConn, err := clientDialer.DialContext(ctx, netw, addr)
-					if newConn != nil {
-						if derr := newConn.SetDeadline(conn.deadline); derr != nil {
-							zap.L().Error("Error setting deadling on new connction for HTTP transport", zap.Error(err))
-						}
-					}
-					return newConn, err //nolint:wrapcheck
-				}
-				connectionUsed.Store(true)
-				return conn, nil
-			},
+			DialContext:       dialContextFn,
+			DialTLSContext:    dialTLSContextFn,
 		},
 	}, redirectCount
 }
